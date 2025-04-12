@@ -1,3 +1,5 @@
+*The GitFartler version control client is still gaseous vaporware; it will, of course, backed by Git, and also like GitButler, it will powered by Tauri/Rust/Svelte*
+
 <div align="center">
    <img align="center" width="128px" src="crates/gitbutler-tauri/icons/128x128@2x.png" />
 	What you REALLY want is ...
