@@ -3,7 +3,7 @@
 <div align="center">
    <img align="center" width="128px" src="crates/gitbutler-tauri/icons/128x128@2x.png" />
 	<p>
-        What you REALLY want is ...
+        ***What you probably REALLY want is*** ...
         <h1 align="center"><b>GitButler</b></h1>
 	<p align="center">
 		Git branch management tool, built from the ground up for modern workflows
