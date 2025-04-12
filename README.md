@@ -1,4 +1,4 @@
-*The GitFartler version control client is still gaseous vaporware; it will, of course, backed by Git, and also like GitButler, it will powered by Tauri/Rust/Svelte*
+*The GitFartler version control client is still* ***gaseous vaporware***. GitFartler promises to be a more relaxed, more social, more annotatable, but mostly #NoCode AI-driven integrated development [and gas-passing] environment for nonprogrammers. Of course, it will be backed by [Git](https://git-scm.com/book/en/v2) and [Git VERY Large File Storage](https://git-lfs.com/). Also like [GitButler](https://docs.gitbutler.com/), it will powered by [Tauri](https://tauri.app/start/)/[Rust](https://www.rust-lang.org/)/[Svelte](https://svelte.dev/docs/svelte/overview)*
 
 <div align="center">
    <img align="center" width="128px" src="crates/gitbutler-tauri/icons/128x128@2x.png" />
