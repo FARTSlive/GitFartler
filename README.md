@@ -4,7 +4,7 @@ The core innovation lies in creating a system that observes development activiti
 
 By leveraging the solid foundation of Git-based technologies (Git, GitButler, GitHub/GitLab) while enhancing them with advanced observability, GitProjMgr aims to bridge the gap between technical and non-technical collaborators while maintaining the "butler vibe"—present when needed but invisible until then. This approach creates the foundation for increasingly sophisticated AI assistance that emerges organically from real project context rather than theoretical models.
 
-## The Invisible Fartler ... Fart Sniffing, Observability Engineering and AI-Enhanced DVCS Systems
+## The Invisible Fartler ... Fart Sniffing, Observability Engineering, AI-Enhanced DVCS Systems
 
 ### Table of Contents
 
