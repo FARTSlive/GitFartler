@@ -1,3 +1,5 @@
+Developing the [GitFartler repository](https://github.com/FARTSlive/GitFartler) will put [FARTS.live](https://github.com/FARTSlive) on the map!
+
 Below we outline the architectural vision for [GitFartler](https://github.com/FARTSlive/GitFartler), a project that builds upon GitButler's foundation to create an enhanced collaborative project management experience. Rather than reimagining GitButler, GitFartler aims to extend its capabilities by implementing sophisticated observability engineering that enables more meaningful AI integration.
 
 The core innovation lies in creating a system that observes development activities unobtrusively—like a "fly on the wall"—capturing the rich tapestry of interactions, discussions, edits, reactions, gas passing and turned up noses that occur naturally during collaborative work. The next generation *fart sniffing* of this ambient intelligence approach allows the system to gradually learn from the nuances of human collaboration without imposing structured workflows or disrupting creative processes.
