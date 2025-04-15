@@ -1,4 +1,4 @@
-*Dig the architectural vision for [GitProjMgr](https://github.com/AuctU/GitProjMgr), so you can appreciate the beauty of* **the Fartler approach** ... ***as in "fartling up some vibe" ... is all about bottling up the ambient gas of a coding vibe session for eternity, so that somebody or some AI can sniff the vibe later.***
+*Dig the architectural vision for [GitProjMgr](https://fartslive.github.io/roadmap/2025/04/15/observability-for-AI-assisted-project-planning-Git-client.html), so you can appreciate the beauty of* **the Fartler approach** ... ***as in "fartling up some vibe" ... is all about bottling up the ambient gas of a coding vibe session for eternity, so that somebody or some AI can sniff the vibe later.***
 
 ### The Fartler Approach and Some Hip Implementation Recommendations
 
@@ -100,4 +100,4 @@ By combining this with the unobtrusive Butler vibe, we create a system that invi
 
 That's the real gone truth of it, daddy-o! 
 
-*Hopefully, the world will be hip to this interpretation of the whole Fartler scene, or we'll need to eat some crazy stuff and try farting in a different wavelength.*
+*Hopefully, the world will be hip to this interpretation of the whole Fartler scene, or we'll need to eat some crazy psychedelic stuff so we can fart our space ship into some different grooves of new dimensions.*
