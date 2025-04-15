@@ -4,6 +4,8 @@ Below we outline the architectural vision for [GitFartler](https://github.com/FA
 
 The core innovation lies in creating a system that observes development activities unobtrusively—like a "fly on the wall"—capturing the rich tapestry of interactions, discussions, edits, reactions, gas passing and turned up noses that occur naturally during collaborative work. The next generation *fart sniffing* of this ambient intelligence approach allows the system to gradually learn from the nuances of human collaboration without imposing structured workflows or disrupting creative processes.
 
+"***Your odor, sir!*** *May, I suggest a change in your diet, before the hogs complain, sir...*" 
+
 By leveraging the solid foundation of Git-based technologies (Git, GitButler, GitHub/GitLab) while enhancing them with advanced observability, GitFartler aims to bridge the gap between technical and non-technical collaborators while maintaining the "butler vibe"—present when needed but invisible until then. This approach creates the foundation for increasingly sophisticated AI assistance that emerges organically from real project context rather than theoretical models.
 
 ## The Invisible Fartler ... Fart Sniffing, Observability Engineering, AI-Enhanced DVCS Systems
