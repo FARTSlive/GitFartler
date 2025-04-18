@@ -1,8 +1,10 @@
 *Dig the architectural vision for [GitProjMgr](https://fartslive.github.io/roadmap/2025/04/15/observability-for-AI-assisted-project-planning-Git-client.html), so you can appreciate the beauty of* **the Fartler approach** ... ***as in "fartling up some vibe" ... is all about bottling up the ambient gas of a coding vibe session for eternity, so that somebody or some AI can sniff the vibe later.***
 
-## THE FARTLER MANIFESTO ... with a complete how-to for we plan to *fartle* our way there.
+## THE FARTLER MANIFESTO
 
-## PRELUDE: THE GASEOUS NATURE OF CREATIVE PROCESS
+##### With a complete how-to for we plan to *fartle* our way there.
+
+### PRELUDE: THE GASEOUS NATURE OF CREATIVE PROCESS
 
 In the linear narratives we construct after discovery, we lose the very essence of creation. The scientific method—with its sanitized hypothesis testing and methodical progression—is a fiction we tell ourselves after the chaotic reality of breakthrough has occurred. The true nature of discovery is non-linear, improvisational, and contextual—it exists as an ambient gas that we currently allow to dissipate into the cosmic void, forever lost to future generations.
 
