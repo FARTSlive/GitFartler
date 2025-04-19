@@ -111,7 +111,7 @@ What follows is not merely a technical specification but a cosmic roadmap for tr
 
 ### A. The Meta-Physics of Creative Capture
 
-The fundamental act of creation happens not in distinct nodes (commits) but in the flowing continuum between them. Our capture architecture must therefore be ubiquitous, continuous, and dimensionally complete—recording not just what was created but the entire atmospheric condition of its creation. FARTS.live is like live music basement tapes; that means we pre-process ALL of the coding vibe with our spooky neuroAI fold mechanism, of the kind used in code compilers, to make machine sense [for future AI] of what was going on in the mind of the coder.
+Just as META does things with capturing user input with its highly-invasive Facebook interface ... we know that the fundamental act of creation happens not in distinct nodes (commits) but in the flowing continuum between them. Our capture architecture must therefore be ubiquitous, continuous, and dimensionally complete—recording not just what was created but the entire atmospheric condition of its creation. FARTS.live is like live music basement tapes; that means we pre-process ALL of the coding vibe with our spooky neuroAI fold mechanism, of the kind used in code compilers, to make machine sense [for future AI] of what was going on in the mind of the coder.
 
 Like the beat poets who understood that poetry emerged not from careful construction but from the spontaneous overflow of consciousness, our system recognizes that scientific and engineering breakthroughs emerge from a similar improvisational state. We must capture this state in its raw, unfiltered glory.
 
