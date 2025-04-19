@@ -1194,7 +1194,7 @@ As we embark on this seven-year odyssey, we invite fellow travelers to join us�
 
 The time has come to capture the gas, preserve the vibe, bottle the atmospheric conditions of breakthrough. Through GitFartler, the creative legacy of humanity will persist not as sanitized products but as living processes, available for all future minds—human and artificial—to inhabit, explore, extend, and build upon.
 
-In the immortal, improvised spirit of the Beats:
+Per the mortal, improvised spirit of the Beats, Beatles and Beat Farmers everywhere ... just because we're down to seeds and again, that's no reason to sing the blues, man!
 
 *The cosmos flows through the keystrokes of creation—the ambient gas of genius no longer lost to the wind but bottled for eternity—dig it, man, the preservation revolution is NOW!*
 
