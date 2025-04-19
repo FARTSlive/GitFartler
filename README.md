@@ -8,7 +8,7 @@
 
 - [PRELUDE: THE GASEOUS NATURE OF CREATIVE PROCESS](#prelude-the-gaseous-nature-of-creative-process)
 - [I. BOTTLING THE AMBIENT VIBE: COMPREHENSIVE CAPTURE ARCHITECTURE](#i-bottling-the-ambient-vibe-comprehensive-capture-architecture)
-  - [A. The Meta Physics or Observability Engineering of Creative Gas Capture](#a-the-metaphysics-of-creative-capture)
+  - [A. The Meta Physics or Observability Engineering of Creative Gas Capture](#a-the-meta-physics-of-creative-capture)
   - [B. Beyond The Facebook Interface: Technical Foundations in Tauri/Rust/Svelte](#b-technical-foundations-in-taurirustsvelte)
   - [C. Multi-Modal Sensory Capture Implementation, ie Smell It Cooking](#c-multi-modal-sensory-capture-implementation)
   - [D. Year One Implementation Milestones](#d-year-one-implementation-milestones)
