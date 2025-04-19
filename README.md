@@ -88,7 +88,7 @@
   - [D. Physics at Galactic Scale](#d-physics-at-galactic-scale)
   - [E. The Ultimate Preservation: Cosmic Consciousness](#e-the-ultimate-preservation-cosmic-consciousness)
 - [XIV. BEATNIK SENSIBILITY MEETS COSMIC ENGINEERING: THE CULTURAL FRAMEWORK](#xiv-beatnik-sensibility-meets-cosmic-engineering-the-cultural-framework)
-  - [A. The Zen of Farts: Process, Release, Then We Light'em](#a-the-zen-of-code-process-as-enlightenment)
+  - [A. The Zen of Farts: Ingest, Process, Release, Then We Light'em](#a-the-zen-of-code-process-as-enlightenment)
   - [B. The Trip: Non-Linear Creative Journeys](#b-the-road-non-linear-creative-journeys)
   - [C. Howl: The Revolutionary Hole Farting In The Wilderness](#c-howl-the-revolutionary-voice-in-technical-creation)
   - [D. The Cosmic Extension: Engineering Meets Beat Expansion, ie kerblooie!](#d-the-cosmic-extension-engineering-meets-beat-expansion)
