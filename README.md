@@ -88,12 +88,12 @@
   - [D. Physics at Galactic Scale](#d-physics-at-galactic-scale)
   - [E. The Ultimate Preservation: Cosmic Consciousness](#e-the-ultimate-preservation-cosmic-consciousness)
 - [XIV. BEATNIK SENSIBILITY MEETS COSMIC ENGINEERING: THE CULTURAL FRAMEWORK](#xiv-beatnik-sensibility-meets-cosmic-engineering-the-cultural-framework)
-  - [A. The Zen of Code: Process as Enlightenment](#a-the-zen-of-code-process-as-enlightenment)
-  - [B. The Road: Non-Linear Creative Journeys](#b-the-road-non-linear-creative-journeys)
-  - [C. Howl: The Revolutionary Voice in Technical Creation](#c-howl-the-revolutionary-voice-in-technical-creation)
-  - [D. The Cosmic Extension: Engineering Meets Beat Expansion](#d-the-cosmic-extension-engineering-meets-beat-expansion)
-  - [E. The New Technological Counterculture](#e-the-new-technological-counterculture)
-- [XV. COSMIC CONCLUSION: THE GAS SHALL BE PRESERVED](#xv-cosmic-conclusion-the-gas-shall-be-preserved)
+  - [A. The Zen of Farts: Process, Release, Then We Light'em](#a-the-zen-of-code-process-as-enlightenment)
+  - [B. The Trip: Non-Linear Creative Journeys](#b-the-road-non-linear-creative-journeys)
+  - [C. Howl: The Revolutionary Hole Farting In The Wilderness](#c-howl-the-revolutionary-voice-in-technical-creation)
+  - [D. The Cosmic Extension: Engineering Meets Beat Expansion, ie kerblooie!](#d-the-cosmic-extension-engineering-meets-beat-expansion)
+  - [E. The New CounterTechnological Culture of Gas And Sniffing the Vibe](#e-the-new-technological-counterculture)
+- [XV. COSMIC CONCLUSION: GAS SHALL BE RELEASED](#xv-cosmic-conclusion-the-gas-shall-be-preserved)
 
 ### PRELUDE: THE GASEOUS NATURE OF CREATIVE PROCESS
 
