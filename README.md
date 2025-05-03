@@ -2,7 +2,7 @@
 
 ## THE FARTLER MANIFESTO
 
-##### With a complete how-to (which is basically a how-not-to for anyone else, including Ted) for we plan to *fartle* our dogfooded way there.
+##### With a complete how-to (which is basically a how-not-to for anyone else, including Ted ... *why not Ted?*) for we plan to *fartle* our dogfooded way there.
 
 ### Table of Contents
 
