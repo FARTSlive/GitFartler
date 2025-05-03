@@ -1,43 +1,30 @@
 <script lang="ts">
-	import { getColorFromCommitState, isLocalAndRemoteCommit } from '$components/v3/lib';
+	import { getColorFromCommitState } from '$components/v3/lib';
+	import { type CommitStatusType } from '$lib/commits/commit';
 	import Tooltip from '@gitbutler/ui/Tooltip.svelte';
 	import { pxToRem } from '@gitbutler/ui/utils/pxToRem';
-	import { camelCaseToTitleCase } from '@gitbutler/ui/utils/string';
-	import type { Commit, UpstreamCommit } from '$lib/branches/v3';
 
 	interface Props {
-		commit: Commit | UpstreamCommit;
+		commitStatus: CommitStatusType;
+		diverged: boolean;
+		tooltip?: string;
 		lastCommit?: boolean;
 		lastBranch?: boolean;
 		width?: number;
 	}
 
-	const { commit, lastCommit, lastBranch, width = 48 }: Props = $props();
+	const { commitStatus, diverged, tooltip, lastCommit, lastBranch, width = 42 }: Props = $props();
 
-	const color = $derived(
-		isLocalAndRemoteCommit(commit)
-			? getColorFromCommitState(commit.id, commit.state)
-			: 'var(--clr-commit-upstream)'
-	);
-	const [localAndRemote, diverged] = $derived.by(() => {
-		const localAndRemote = isLocalAndRemoteCommit(commit) && commit.state.type === 'LocalAndRemote';
-		if (localAndRemote) {
-			const diverged = commit.state.subject !== commit.id;
-			return [localAndRemote, diverged];
-		}
-		return [false, false];
-	});
+	const color = $derived(getColorFromCommitState(commitStatus, diverged));
 
-	const tooltipText = $derived(
-		!isLocalAndRemoteCommit(commit) ? 'Upstream' : camelCaseToTitleCase(commit.state.type)
-	);
+	const rhombus = $derived(commitStatus === 'LocalAndRemote');
 </script>
 
 <div class="commit-lines" style:--commit-color={color} style:--container-width={pxToRem(width)}>
 	<div class="top"></div>
 	{#if diverged}
 		<div class="local-shadow-commit-dot">
-			<Tooltip text={'Diverged'}>
+			<Tooltip text="Diverged">
 				<svg class="shadow-dot" viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
 					<path
 						d="M0.827119 6.41372C0.0460709 5.63267 0.0460709 4.36634 0.827119 3.58529L3.70602 0.706392C4.48707 -0.0746567 5.7534 -0.0746567 6.53445 0.706392L9.41335 3.58529C10.1944 4.36634 10.1944 5.63267 9.41335 6.41372L6.53445 9.29262C5.7534 10.0737 4.48707 10.0737 3.70602 9.29262L0.827119 6.41372Z"
@@ -55,8 +42,8 @@
 			</Tooltip>
 		</div>
 	{:else}
-		<Tooltip text={tooltipText}>
-			<div class="middle" class:rhombus={localAndRemote}></div>
+		<Tooltip text={tooltip}>
+			<div class="middle" class:rhombus></div>
 		</Tooltip>
 	{/if}
 	<div class="bottom" class:dashed={lastCommit && lastBranch}></div>
@@ -64,6 +51,7 @@
 
 <style lang="postcss">
 	.commit-lines {
+		flex: 0 0 auto;
 		display: flex;
 		flex-direction: column;
 		align-items: center;

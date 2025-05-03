@@ -1,12 +1,15 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import SyncButton from '$components/SyncButton.svelte';
 	import IntegrateUpstreamModal from '$components/v3/IntegrateUpstreamModal.svelte';
 	import BaseBranchService from '$lib/baseBranch/baseBranchService.svelte';
+	import { ircEnabled } from '$lib/config/uiFeatureFlags';
 	import { IrcService } from '$lib/irc/ircService.svelte';
 	import { platformName } from '$lib/platform/platform';
 	import { Project } from '$lib/project/project';
 	import { ProjectsService } from '$lib/project/projectsService';
 	import { ircPath, projectPath } from '$lib/routes/routes.svelte';
+	import { TestId } from '$lib/testing/testIds';
 	import { getContext, maybeGetContext } from '@gitbutler/shared/context';
 	import Button from '@gitbutler/ui/Button.svelte';
 	import Icon from '@gitbutler/ui/Icon.svelte';
@@ -14,13 +17,13 @@
 	import OptionsGroup from '@gitbutler/ui/select/OptionsGroup.svelte';
 	import Select from '@gitbutler/ui/select/Select.svelte';
 	import SelectItem from '@gitbutler/ui/select/SelectItem.svelte';
-	import { goto } from '$app/navigation';
 
 	type Props = {
 		projectId: string;
+		actionsDisabled?: boolean;
 	};
 
-	const { projectId }: Props = $props();
+	const { projectId, actionsDisabled = false }: Props = $props();
 
 	const projectsService = getContext(ProjectsService);
 	const baseBranchService = getContext(BaseBranchService);
@@ -59,18 +62,22 @@
 	<IntegrateUpstreamModal bind:this={modal} projectId={selectedProjectId} />
 {/if}
 
-<div class="header" class:mac={platformName === 'macos'} data-tauri-drag-region>
-	<div class="left" data-tauri-drag-region>
-		<div class="left-buttons" class:macos={platformName === 'macos'}>
-			<SyncButton {projectId} size="button" />
+<div class="chrome-header" class:mac={platformName === 'macos'} data-tauri-drag-region>
+	<div class="chrome-left" data-tauri-drag-region>
+		<div class="chrome-left-buttons" class:macos={platformName === 'macos'}>
+			<SyncButton {projectId} size="button" disabled={actionsDisabled} />
 			{#if upstreamCommits > 0}
-				<Button style="pop" onclick={openModal} disabled={!selectedProjectId}
+				<Button
+					testId={TestId.IntegrateUpstreamCommitsButton}
+					style="pop"
+					onclick={openModal}
+					disabled={!selectedProjectId || actionsDisabled}
 					>{upstreamCommits} upstream commits</Button
 				>
 			{/if}
 		</div>
 	</div>
-	<div class="center" data-tauri-drag-region>
+	<div class="chrome-center" data-tauri-drag-region>
 		<Select
 			searchable
 			value={selectedProjectId}
@@ -128,18 +135,20 @@
 			</OptionsGroup>
 		</Select>
 	</div>
-	<div class="right" data-tauri-drag-region>
-		<NotificationButton
-			hasUnread={isNotificationsUnread}
-			onclick={() => {
-				goto(ircPath(projectId));
-			}}
-		/>
+	<div class="chrome-right" data-tauri-drag-region>
+		{#if $ircEnabled}
+			<NotificationButton
+				hasUnread={isNotificationsUnread}
+				onclick={() => {
+					goto(ircPath(projectId));
+				}}
+			/>
+		{/if}
 	</div>
 </div>
 
 <style>
-	.header {
+	.chrome-header {
 		display: flex;
 		padding: 14px;
 		align-items: center;
@@ -147,34 +156,35 @@
 		overflow: hidden;
 	}
 
-	.left {
+	.chrome-left {
 		display: flex;
 		gap: 14px;
 	}
 
-	.center {
+	.chrome-center {
 		flex-shrink: 1;
 	}
 
-	.right {
+	.chrome-right {
 		display: flex;
+		gap: 4px;
 		justify-content: right;
 	}
 
 	/** Flex basis 0 means they grow by the same amount. */
-	.right,
-	.left {
+	.chrome-right,
+	.chrome-left {
 		flex-basis: 0;
 		flex-grow: 1;
 	}
 
-	.left-buttons {
+	.chrome-left-buttons {
 		display: flex;
 		gap: 8px;
 	}
 
 	/** Mac padding added here to not affect header flex-box sizing. */
-	.mac .left-buttons {
+	.mac .chrome-left-buttons {
 		padding-left: 70px;
 	}
 

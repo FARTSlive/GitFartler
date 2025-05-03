@@ -1,43 +1,28 @@
 <script lang="ts">
 	import { isCommit, type Commit, type UpstreamCommit } from '$lib/branches/v3';
-	import { ModeService } from '$lib/mode/modeService';
-	import { StackService } from '$lib/stacks/stackService.svelte';
 	import { UiState } from '$lib/state/uiState.svelte';
+	import { TestId } from '$lib/testing/testIds';
 	import { UserService } from '$lib/user/userService';
+	import { splitMessage } from '$lib/utils/commitMessage';
 	import { inject } from '@gitbutler/shared/context';
-	import AsyncButton from '@gitbutler/ui/AsyncButton.svelte';
-	import Button from '@gitbutler/ui/Button.svelte';
 	import Avatar from '@gitbutler/ui/avatar/Avatar.svelte';
 	import { marked } from '@gitbutler/ui/utils/marked';
 	import { getTimeAgo } from '@gitbutler/ui/utils/timeAgo';
+	import type { Snippet } from 'svelte';
 
 	type Props = {
-		projectId: string;
-		stackId: string;
 		commit: UpstreamCommit | Commit;
-		branchName?: string;
-		href?: string;
-		onEditCommitMessage: () => void;
+		children?: Snippet;
 	};
 
-	const { projectId, commit, stackId, onEditCommitMessage }: Props = $props();
+	const { commit, children }: Props = $props();
 
-	const [userService, modeService, stackService, uiState] = inject(
-		UserService,
-		ModeService,
-		StackService,
-		UiState
-	);
+	const [userService] = inject(UserService, UiState);
 
 	const user = $derived(userService.user);
-	const stackState = $derived(uiState.stack(stackId));
-	const projectState = $derived(uiState.project(projectId));
-	const selected = $derived(stackState.selection.get());
-	const branchName = $derived(selected.current?.branchName);
 
 	const message = $derived(commit.message);
-	const description = $derived(message.slice(message.indexOf('\n') + 1).trim());
-	const isConflicted = $derived(isCommit(commit) && commit.hasConflicts);
+	const { description } = $derived(splitMessage(message));
 	const isUpstream = $derived(!isCommit(commit));
 
 	function getGravatarUrl(email: string, existingGravatarUrl: string): string {
@@ -49,32 +34,13 @@
 		}
 		return existingGravatarUrl;
 	}
-
-	async function editPatch() {
-		await modeService.enterEditMode(commit.id, stackId);
-	}
-
-	async function handleEditPatch() {
-		await editPatch();
-	}
-
-	async function handleUncommit() {
-		if (!branchName) return;
-		await stackService.uncommit({ projectId, stackId, branchName, commitId: commit.id });
-		projectState.drawerPage.set(undefined);
-		if (branchName) stackState.selection.set({ branchName, commitId: undefined });
-	}
-
-	function openCommitMessageModal() {
-		onEditCommitMessage();
-	}
 </script>
 
 <div class="commit-header">
 	<div class="metadata text-12">
 		<span>Author:</span>
 		<Avatar
-			size={'medium'}
+			size="medium"
 			tooltip={commit.author.name}
 			srcUrl={getGravatarUrl(commit.author.email, commit.author.gravatarUrl)}
 		/>
@@ -84,40 +50,12 @@
 
 	{#if !isUpstream}
 		<div class="commit-details_actions">
-			<Button
-				size="tag"
-				kind="outline"
-				icon="edit-small"
-				onclick={() => {
-					openCommitMessageModal();
-				}}
-			>
-				Edit message
-			</Button>
-
-			{#if !isConflicted}
-				<AsyncButton
-					size="tag"
-					kind="outline"
-					icon="undo-small"
-					action={async () => await handleUncommit()}
-				>
-					Uncommit
-				</AsyncButton>
-			{/if}
-
-			<Button size="tag" kind="outline" onclick={handleEditPatch}>
-				{#if isConflicted}
-					Resolve conflicts
-				{:else}
-					Edit commit
-				{/if}
-			</Button>
+			{@render children?.()}
 		</div>
 	{/if}
 
 	{#if description}
-		<p class="text-13 text-body commit-description">
+		<p data-testid={TestId.CommitDrawerDescription} class="text-13 text-body commit-description">
 			{@html marked(description)}
 		</p>
 	{/if}
@@ -149,6 +87,7 @@
 	.commit-details_actions {
 		width: 100%;
 		display: flex;
+		flex-wrap: wrap;
 		gap: 5px;
 	}
 </style>

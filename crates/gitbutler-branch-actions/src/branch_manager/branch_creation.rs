@@ -111,6 +111,8 @@ impl BranchManager<'_> {
         vb_state.set_stack(branch.clone())?;
         self.ctx.add_branch_reference(&branch)?;
 
+        update_workspace_commit(&vb_state, self.ctx)?;
+
         Ok(branch)
     }
 
@@ -206,8 +208,9 @@ impl BranchManager<'_> {
             },
         );
 
-        let mut branch = if let Ok(Some(mut branch)) =
-            vb_state.find_by_source_refname_where_not_in_workspace(target)
+        let mut branch = if let Some(mut branch) = vb_state
+            .find_by_top_reference_name_where_not_in_workspace(&target.to_string())?
+            .or(vb_state.find_by_source_refname_where_not_in_workspace(target)?)
         {
             branch.upstream_head = upstream_branch.is_some().then_some(head_commit.id());
             branch.upstream = upstream_branch; // Used as remote when listing commits.
@@ -217,8 +220,9 @@ impl BranchManager<'_> {
             branch.allow_rebasing = self.ctx.project().ok_with_force_push.into();
             branch.in_workspace = true;
 
-            // allow duplicate branch name if created from an existing branch
+            // This seems to ensure that there is at least one head.
             branch.initialize(self.ctx, true)?;
+            vb_state.set_stack(branch.clone())?;
             branch
         } else {
             let upstream_head = upstream_branch.is_some().then_some(head_commit.id());
@@ -285,11 +289,11 @@ impl BranchManager<'_> {
 
         let gix_repo = repo.to_gix()?;
         let merge_base = repo
-            .merge_base(default_target.sha, stack.head(&gix_repo)?)
+            .merge_base(default_target.sha, stack.head_oid(&gix_repo)?.to_git2())
             .context(format!(
                 "failed to find merge base between {} and {}",
                 default_target.sha,
-                stack.head(&gix_repo)?
+                stack.head_oid(&gix_repo)?
             ))?;
 
         // Branch is out of date, merge or rebase it
@@ -319,7 +323,7 @@ impl BranchManager<'_> {
                     .iter()
                     .filter(|branch| branch.id != stack_id)
                 {
-                    self.save_and_unapply(stack.id, perm)?;
+                    self.unapply(stack.id, perm, false)?;
                 }
             }
         }
@@ -327,7 +331,7 @@ impl BranchManager<'_> {
         // Do we need to rebase the branch on top of the default target?
 
         let has_change_id = repo
-            .find_commit(stack.head(&gix_repo)?)?
+            .find_commit(stack.head_oid(&gix_repo)?.to_git2())?
             .change_id()
             .is_some();
         // If the branch has no change ID for the head commit, we want to rebase it even if the base is the same
@@ -347,7 +351,7 @@ impl BranchManager<'_> {
             } else {
                 gitbutler_merge_commits(
                     repo,
-                    repo.find_commit(stack.head(&gix_repo)?)?,
+                    repo.find_commit(stack.head_oid(&gix_repo)?.to_git2())?,
                     repo.find_commit(default_target.sha)?,
                     &stack.name,
                     default_target.branch.branch(),
@@ -374,7 +378,8 @@ impl BranchManager<'_> {
 
         {
             if let Some(wip_commit_to_unapply) = &stack.not_in_workspace_wip_change_id {
-                let potential_wip_commit = repo.find_commit(stack.head(&gix_repo)?)?;
+                let potential_wip_commit =
+                    repo.find_commit(stack.head_oid(&gix_repo)?.to_git2())?;
 
                 // Don't try to undo commit if its conflicted
                 if !potential_wip_commit.is_conflicted() {
@@ -383,7 +388,7 @@ impl BranchManager<'_> {
                             stack = crate::undo_commit::undo_commit(
                                 self.ctx,
                                 stack.id,
-                                stack.head(&gix_repo)?,
+                                stack.head_oid(&gix_repo)?.to_git2(),
                                 perm,
                             )?;
                         }

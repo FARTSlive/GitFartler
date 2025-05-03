@@ -1,16 +1,52 @@
 import type { Author, Commit, UpstreamCommit } from '$lib/branches/v3';
+import type { CellType } from '@gitbutler/ui/commitLines/types';
+import type iconsJson from '@gitbutler/ui/data/icons.json';
+
+export type StackHeadInfo = {
+	/**
+	 * The name of the branch
+	 */
+	readonly name: string;
+	/**
+	 * The commit hash of the tip of the branch
+	 */
+	readonly tip: string;
+};
 
 /**
  * Return type of Tauri `stacks` command.
  */
 export type Stack = {
+	/**
+	 * The id of the stack.
+	 */
 	id: string;
-	branchNames: string[];
+	/**
+	 * Information about the branches contained in the stack.
+	 */
+	heads: StackHeadInfo[];
+	/**
+	 * The commit hash of the tip of the stack.
+	 */
+	tip: string;
 };
 
-export function getStackName(stack: Stack): string | undefined {
-	const lastBranch = stack.branchNames[stack.branchNames.length - 1];
+/**
+ * Returns the name of the stack.
+ *
+ * This is the name of the top-most branch in the stack.
+ */
+export function getStackName(stack: Stack): string {
+	if (stack.heads.length === 0) {
+		// Should not happen
+		throw new Error('Stack has no heads');
+	}
+	const lastBranch = stack.heads.at(0)!.name;
 	return lastBranch;
+}
+
+export function getStackBranchNames(stack: Stack): string[] {
+	return stack.heads.map((head) => head.name);
 }
 
 /** Represents the pushable status for the current stack */
@@ -36,6 +72,39 @@ export type PushStatus =
 	 */
 	| 'integrated';
 
+export function pushStatusToColor(pushStatus: PushStatus): CellType {
+	switch (pushStatus) {
+		case 'nothingToPush':
+		case 'unpushedCommits':
+		case 'unpushedCommitsRequiringForce':
+			return 'LocalAndRemote';
+		case 'completelyUnpushed':
+			return 'LocalOnly';
+		case 'integrated':
+			return 'Integrated';
+	}
+}
+
+export function pushStatusToIcon(pushStatus: PushStatus): keyof typeof iconsJson {
+	switch (pushStatus) {
+		case 'nothingToPush':
+		case 'unpushedCommits':
+		case 'unpushedCommitsRequiringForce':
+			return 'branch-remote';
+		case 'completelyUnpushed':
+			return 'branch-local';
+		case 'integrated':
+			return 'branch-remote';
+	}
+}
+
+export function branchRefName(branch: BranchDetails): string {
+	if (branch.isRemoteHead) {
+		return `refs/remotes/${branch.name}`;
+	}
+	return `refs/heads/${branch.name}`;
+}
+
 export type BranchDetails = {
 	/** The name of the branch */
 	readonly name: string;
@@ -50,6 +119,11 @@ export type BranchDetails = {
 	readonly prNumber: number | null;
 	/** A unique identifier for the GitButler review associated with the branch, if any. */
 	readonly reviewId: string | null;
+	/**
+	 * This is the last commit in the branch, aka the tip of the branch.
+	 * If this is the only branch in the stack or the top-most branch, this is the tip of the stack.
+	 */
+	readonly tip: string;
 	/**
 	 * This is the base commit from the perspective of this branch.
 	 * If the branch is part of a stack and is on top of another branch, this is the head of the branch below it.
@@ -80,6 +154,8 @@ export type BranchDetails = {
 	 * The commits that are only upstream.
 	 */
 	upstreamCommits: UpstreamCommit[];
+	/** Whether the branch is representing a remote head */
+	isRemoteHead: boolean;
 };
 
 export type StackDetails = {

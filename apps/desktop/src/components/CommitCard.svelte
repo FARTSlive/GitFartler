@@ -7,7 +7,7 @@
 	import { BranchStack } from '$lib/branches/branch';
 	import { PatchSeries } from '$lib/branches/branch';
 	import { Commit, DetailedCommit } from '$lib/commits/commit';
-	import { type CommitStatus } from '$lib/commits/commit';
+	import { type CommitStatusType } from '$lib/commits/commit';
 	import { createCommitStore } from '$lib/commits/contexts';
 	import { CommitDropData } from '$lib/commits/dropHandler';
 	import { persistedCommitMessage } from '$lib/config/config';
@@ -21,6 +21,7 @@
 	import { UserService } from '$lib/user/userService';
 	import { openExternalUrl } from '$lib/utils/url';
 	import { getContext, maybeGetContext } from '@gitbutler/shared/context';
+	import AsyncButton from '@gitbutler/ui/AsyncButton.svelte';
 	import Button from '@gitbutler/ui/Button.svelte';
 	import ContextMenu from '@gitbutler/ui/ContextMenu.svelte';
 	import Icon from '@gitbutler/ui/Icon.svelte';
@@ -45,7 +46,7 @@
 		isUnapplied?: boolean;
 		last?: boolean;
 		noBorder?: boolean;
-		type: CommitStatus;
+		type: CommitStatusType;
 		lines?: Snippet | undefined;
 		filesToggleable?: boolean;
 		disableCommitActions?: boolean;
@@ -179,7 +180,7 @@
 
 	async function editPatch() {
 		if (!canEdit()) return;
-		modeService!.enterEditMode(commit.id, stack!.id);
+		await modeService!.enterEditMode(commit.id, stack!.id);
 	}
 
 	async function handleEditPatch() {
@@ -213,17 +214,21 @@
 	{/snippet}
 </Modal>
 
-<Modal bind:this={conflictResolutionConfirmationModal} width="small" onSubmit={editPatch}>
-	{#snippet children()}
-		<div>
-			<p>It's generally better to start resolving conflicts from the bottom up.</p>
-			<br />
-			<p>Are you sure you want to resolve conflicts for this commit?</p>
-		</div>
-	{/snippet}
+<Modal bind:this={conflictResolutionConfirmationModal} width="small">
+	<div>
+		<p>It's generally better to start resolving conflicts from the bottom up.</p>
+		<br />
+		<p>Are you sure you want to resolve conflicts for this commit?</p>
+	</div>
 	{#snippet controls(close)}
 		<Button kind="outline" type="reset" onclick={close}>Cancel</Button>
-		<Button style="pop" type="submit">Yes</Button>
+		<AsyncButton
+			style="pop"
+			action={async () => {
+				await editPatch();
+				close();
+			}}>Yes</AsyncButton
+		>
 	{/snippet}
 </Modal>
 
@@ -245,7 +250,6 @@
 	commitUrl={showOpenInBrowser ? commitUrl : undefined}
 	onUncommitClick={undoCommit}
 	onEditMessageClick={openCommitMessageModal}
-	onPatchEditClick={handleEditPatch}
 />
 
 <div
@@ -280,7 +284,7 @@
 					stack.id,
 					{
 						id: commit.id,
-						isConflicted: commit.conflicted,
+						hasConflicts: commit.conflicted,
 						isRemote: commit instanceof Commit,
 						isIntegrated: commit instanceof DetailedCommit && commit.isIntegrated
 					},
@@ -325,9 +329,11 @@
 				<span class="text-13 text-body text-semibold commit__empty-title">empty commit message</span
 				>
 			{:else}
-				<h5 class="text-13 text-body text-semibold commit__title" class:truncate={!showDetails}>
-					{commit.descriptionTitle}
-				</h5>
+				<Tooltip text={commit.descriptionTitle}>
+					<h5 class="text-13 text-body text-semibold commit__title" class:truncate={!showDetails}>
+						{commit.descriptionTitle}
+					</h5>
+				</Tooltip>
 
 				<div class="text-11 text-semibold commit__subtitle">
 					{#if commit.isSigned}
@@ -342,7 +348,7 @@
 
 					{#if conflicted}
 						<Tooltip
-							text={"Conflicted commits must be resolved before they can be amended or squashed.\nPlease resolve conflicts using the 'Resolve conflicts' button"}
+							text="Conflicted commits must be resolved before they can be amended or squashed.\nPlease resolve conflicts using the 'Resolve conflicts' button"
 						>
 							<div class="commit__conflicted">
 								<Icon name="warning-small" />
@@ -427,13 +433,13 @@
 								>
 							{/if}
 							{#if canEdit()}
-								<Button size="tag" kind="outline" onclick={handleEditPatch}>
+								<AsyncButton size="tag" kind="outline" action={handleEditPatch} stopPropagation>
 									{#if conflicted}
 										Resolve conflicts
 									{:else}
 										Edit commit
 									{/if}
-								</Button>
+								</AsyncButton>
 							{/if}
 						</div>
 					{/if}

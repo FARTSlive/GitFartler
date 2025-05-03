@@ -42,9 +42,10 @@
 	</div>
 
 	<div class="submit-review-actions__general">
-		<Button kind="outline" loading={isSubmitting} onclick={onCancel}>Cancel</Button>
+		<Button kind="outline" disabled={isSubmitting} onclick={onCancel}>Cancel</Button>
 		<AsyncButton
 			width={166}
+			style="pop"
 			action={async () => onSubmit()}
 			disabled={ctaDisabled}
 			loading={isSubmitting}>{getCtaLabel()}</AsyncButton

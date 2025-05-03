@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ConfigurableScrollableContainer from '$components/ConfigurableScrollableContainer.svelte';
 	import Resizer from '$components/Resizer.svelte';
+	import { Focusable } from '$lib/focus/focusManager.svelte';
 	import { focusable } from '$lib/focus/focusable.svelte';
 	import { UiState } from '$lib/state/uiState.svelte';
 	import { inject } from '@gitbutler/shared/context';
@@ -11,7 +12,6 @@
 		projectId: string;
 		title?: string;
 		stackId?: string;
-		splitView?: boolean;
 		minHeight?: number;
 		header?: Snippet;
 		extraActions?: Snippet;
@@ -19,20 +19,21 @@
 		children: Snippet;
 		filesSplitView?: Snippet;
 		disableScroll?: boolean;
+		testId?: string;
 	};
 
 	const {
 		title,
 		projectId,
 		stackId,
-		splitView,
 		minHeight = 11,
 		header,
 		extraActions,
 		kebabMenu,
 		children,
 		filesSplitView,
-		disableScroll
+		disableScroll,
+		testId
 	}: Props = $props();
 
 	const [uiState] = inject(UiState);
@@ -44,6 +45,7 @@
 	const heightRmResult = $derived(uiState.global.drawerHeight.get());
 	const heightRm = $derived(`min(${heightRmResult.current}rem, 80%)`);
 	const height = $derived(drawerIsFullScreen.current ? '100%' : heightRm);
+	const splitView = $derived(!!filesSplitView);
 
 	const contentWidth = $derived(uiState.global.drawerSplitViewWidth.get());
 	const scrollable = $derived(!disableScroll);
@@ -62,11 +64,12 @@
 </script>
 
 <div
+	data-testid={testId}
 	class="drawer"
 	bind:this={drawerDiv}
 	style:height
 	style:min-height="{minHeight}rem"
-	use:focusable={{ id: 'commit', parentId: 'main' }}
+	use:focusable={{ id: Focusable.CommitEditor, parentId: Focusable.WorkspaceMiddle }}
 >
 	<div class="drawer-wrap">
 		<div class="drawer-header">
@@ -231,7 +234,6 @@
 		&:not(.files-split-view) {
 			& .drawer__content {
 				flex: 1;
-				min-height: 100%;
 			}
 
 			& .drawer__content-scroll {
@@ -241,7 +243,6 @@
 
 		@container drawer (min-width: 530px) {
 			&.files-split-view .drawer__content-scroll {
-				min-width: 300px;
 				max-width: 500px;
 			}
 		}
@@ -266,6 +267,16 @@
 		}
 	}
 
+	.drawer__content {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		padding: 14px;
+		min-height: 100%;
+		container-type: inline-size;
+		container-name: drawer-content;
+	}
+
 	.drawer__content-scroll {
 		display: flex;
 		flex-direction: column;
@@ -280,13 +291,6 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
-		min-width: 230px;
-	}
-
-	.drawer__content {
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		padding: 14px;
+		min-width: 200px;
 	}
 </style>

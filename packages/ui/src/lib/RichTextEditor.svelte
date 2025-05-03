@@ -46,6 +46,7 @@
 		onKeyDown?: (event: KeyboardEvent | null) => boolean;
 		initialText?: string;
 		disabled?: boolean;
+		wrapCountValue?: number;
 	};
 
 	const {
@@ -60,7 +61,8 @@
 		onBlur,
 		onChange,
 		onKeyDown,
-		initialText
+		initialText,
+		wrapCountValue
 	}: Props = $props();
 
 	/** Standard configuration for our commit message editor. */
@@ -173,7 +175,11 @@
 </script>
 
 <Composer {initialConfig} bind:this={composer}>
-	<div class="lexical-container lexical-{styleContext}" bind:this={editorDiv}>
+	<div
+		class="lexical-container lexical-{styleContext}"
+		bind:this={editorDiv}
+		class:plain-text={!markdown}
+	>
 		<div class="editor-scroller scrollbar">
 			<div class="editor">
 				<ContentEditable />
@@ -184,7 +190,7 @@
 		</div>
 
 		<EmojiPlugin bind:this={emojiPlugin} />
-		<OnChangePlugin {onChange} />
+		<OnChangePlugin {markdown} {onChange} {wrapCountValue} />
 
 		{#if markdown}
 			<AutoFocusPlugin />

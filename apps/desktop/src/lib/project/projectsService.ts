@@ -1,3 +1,4 @@
+import { goto } from '$app/navigation';
 import { invoke } from '$lib/backend/ipc';
 import { showError } from '$lib/notifications/toasts';
 import { Project, type CloudProject } from '$lib/project/project';
@@ -8,7 +9,6 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { plainToInstance } from 'class-transformer';
 import { derived, get, writable, type Readable } from 'svelte/store';
 import type { HttpClient } from '@gitbutler/shared/network/httpClient';
-import { goto } from '$app/navigation';
 
 export class ProjectsService {
 	private persistedId = persisted<string | undefined>(undefined, 'lastProject');
@@ -184,5 +184,9 @@ export class ProjectsService {
 
 	async getCloudProject(repositoryId: string): Promise<CloudProject> {
 		return await this.httpClient.get(`projects/${repositoryId}.json`);
+	}
+
+	async getActiveProject(): Promise<Project | undefined> {
+		return await invoke('get_active_project');
 	}
 }

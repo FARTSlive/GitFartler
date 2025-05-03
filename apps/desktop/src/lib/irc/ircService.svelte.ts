@@ -1,7 +1,6 @@
 import {
 	getUnreadCount,
 	ircSlice,
-	markChannelOpen,
 	messageChannel,
 	processIncoming,
 	selectChannelMessages,
@@ -10,25 +9,32 @@ import {
 	setNick,
 	setUser,
 	getChannelUsers,
+	selectPrivateMessages,
+	getChats,
+	markOpen,
+	messageNick,
+	getChatsWithPopup,
+	getChannel,
+	setPopup,
+	getChat,
 	clearNames
 } from '$lib/irc/ircSlice';
 import { showError } from '$lib/notifications/toasts';
 import { reactive } from '@gitbutler/shared/reactiveUtils.svelte';
 import persistReducer from 'redux-persist/es/persistReducer';
 import storage from 'redux-persist/lib/storage';
-import type { IrcClient, ReadyState } from '$lib/irc/ircClient.svelte';
-import type { WhoInfo } from '$lib/irc/types';
+import type { IrcClient } from '$lib/irc/ircClient.svelte';
+import type { IrcEvent } from '$lib/irc/parser';
+import type { IrcChannel, IrcChat, WhoInfo } from '$lib/irc/types';
 import type { ClientState } from '$lib/state/clientState.svelte';
+import type { Reactive } from '@gitbutler/shared/storeUtils';
 import type { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
 
 /**
- * A service for tracking uncommitted changes.
- *
- * Since we want to maintain a list and access individual records we use a
- * redux entity adapter on the results.
+ * Experimental IRC
  */
 export class IrcService {
-	private state = $state(ircSlice.getInitialState());
+	private state = $state.raw(ircSlice.getInitialState());
 	_whoInfo: WhoInfo | undefined;
 	status: ReadyState | undefined = $state();
 
@@ -41,17 +47,24 @@ export class IrcService {
 			key: ircSlice.reducerPath,
 			storage: storage
 		};
+
 		clientState.inject(ircSlice.reducerPath, persistReducer(persistConfig, ircSlice.reducer));
+
 		$effect(() => {
 			if (clientState.reactiveState) {
-				// @ts-expect-error code-splitting means it's not defined in client state.
-				this.state = clientState.reactiveState[ircSlice.reducerPath] as IRCState;
+				if (ircSlice.reducerPath in clientState.reactiveState) {
+					// @ts-expect-error code-splitting means it's not defined in client state.
+					this.state = clientState.reactiveState[ircSlice.reducerPath] as IRCState;
+				}
 			}
 		});
 
 		$effect(() => {
-			return this.ircClient.onevent(async (message) => await this.handleMessage(message));
+			return this.ircClient.onevent(async (event) => {
+				return this.handleEvent(event);
+			});
 		});
+
 		$effect(() => {
 			return this.ircClient.onopen(() => {
 				const channels = this.getChannels();
@@ -61,7 +74,7 @@ export class IrcService {
 						const channel = channels[key];
 						this.send(`JOIN ${channel?.name}`);
 					}
-				}, 2000);
+				}, 5000);
 			});
 		});
 	}
@@ -81,9 +94,9 @@ export class IrcService {
 		);
 	}
 
-	private async handleMessage(message: string) {
+	private handleEvent(event: IrcEvent) {
 		try {
-			await this.dispatch(processIncoming(message));
+			this.dispatch(processIncoming(event));
 		} catch (err: unknown) {
 			showError('IRC error', err);
 		}
@@ -98,11 +111,22 @@ export class IrcService {
 		this.ircClient.send(message);
 	}
 
-	async sendToGroup(message: string, channel: string) {
+	async sendToGroup(channel: string, message: string, data?: unknown) {
 		return await this.dispatch(
 			messageChannel({
 				channel,
-				message
+				message,
+				data
+			})
+		);
+	}
+
+	async sendToNick(nick: string, message: string, data?: string | undefined) {
+		return await this.dispatch(
+			messageNick({
+				nick,
+				message,
+				data
 			})
 		);
 	}
@@ -111,7 +135,7 @@ export class IrcService {
 		this.ircClient.disconnect();
 	}
 
-	getSystemMessages() {
+	getServerMessages() {
 		const result = $derived(selectSystemMessages(this.state));
 		return result;
 	}
@@ -121,9 +145,36 @@ export class IrcService {
 		return result;
 	}
 
+	getPrivateMessages(nick: string) {
+		const result = $derived(selectPrivateMessages(this.state, nick));
+		return result;
+	}
+
+	getChats() {
+		const result = $derived(getChats(this.state));
+		return result;
+	}
+
+	getChatsWithPopup() {
+		const result = $derived(getChatsWithPopup(this.state));
+		return result;
+	}
+
 	getChannels() {
 		const result = $derived(getChannels(this.state));
 		return result;
+	}
+
+	getChannel(name: string): Reactive<IrcChannel | undefined> {
+		const selector = $derived(getChannel(name));
+		const result = $derived(selector(this.state));
+		return reactive(() => result);
+	}
+
+	getChat(name: string): Reactive<IrcChat | undefined> {
+		const selector = $derived(getChat(name));
+		const result = $derived(selector(this.state));
+		return reactive(() => result);
 	}
 
 	getChannelUsers(name: string) {
@@ -131,11 +182,15 @@ export class IrcService {
 		return reactive(() => result);
 	}
 
-	markOpen(channel: string) {
-		this.dispatch(markChannelOpen({ name: channel, open: true }));
+	markOpen(name: string) {
+		this.dispatch(markOpen({ name, open: true }));
 		return () => {
-			this.dispatch(markChannelOpen({ name: channel, open: false }));
+			this.dispatch(markOpen({ name, open: false }));
 		};
+	}
+
+	setPopup(name: string, popup: boolean) {
+		this.dispatch(setPopup({ name, popup }));
 	}
 
 	unreadCount() {

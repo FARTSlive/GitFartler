@@ -1,7 +1,8 @@
 <script lang="ts">
-	import StackTabMenu from '$components/v3/stackTabs/StackTabMenu.svelte';
-	import Icon from '@gitbutler/ui/Icon.svelte';
 	import { goto } from '$app/navigation';
+	import StackTabMenu from '$components/v3/stackTabs/StackTabMenu.svelte';
+	import { TestId } from '$lib/testing/testIds';
+	import Icon from '@gitbutler/ui/Icon.svelte';
 
 	type Props = {
 		name: string;
@@ -43,6 +44,7 @@
 </script>
 
 <button
+	data-testid={TestId.StackTab}
 	type="button"
 	class="tab"
 	class:selected

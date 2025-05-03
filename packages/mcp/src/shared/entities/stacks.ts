@@ -1,8 +1,16 @@
 import { z } from 'zod';
 
+export const StackHeadInfoSchema = z.object({
+	name: z.string({ description: 'The name of the stack head.' }),
+	tip: z.string({ description: 'The commit ID of the tip of the stack head.' })
+});
+
 export const StackSchema = z.object({
 	id: z.string({ description: 'The unique identifier for the stack. This is a UUID.' }),
-	branchNames: z.array(z.string())
+	heads: z.array(StackHeadInfoSchema, {
+		description: 'Information about the branches contained in the stack.'
+	}),
+	tip: z.string({ description: 'The commit ID of the tip of the stack.' })
 });
 
 export const StackListSchema = z.array(StackSchema);
@@ -22,6 +30,10 @@ export const BranchSchema = z.object({
 	archived: z.boolean({
 		description:
 			'Indicates whether the branch is part of this stack, but has already been integrated. In other words, the merge base of the stack is above this branch.'
+	}),
+	tip: z.string({
+		description:
+			'The commit ID of the tip of the branch. If this is the only branch in the stack or the top-most branch, this is the tip of the stack.'
 	}),
 	baseCommit: z.string({
 		description:
@@ -73,4 +85,30 @@ export const UpstreamCommitSchema = z.object({
 export const BranchCommitsSchema = z.object({
 	localAndRemote: z.array(CommitSchema),
 	upstreamCommits: z.array(UpstreamCommitSchema)
+});
+
+export const RejectedChangesSchema = z.tuple([
+	z.enum([
+		'NoEffectiveChanges',
+		'CherryPickMergeConflict',
+		'WorkspaceMergeConflict',
+		'WorktreeFileMissingForObjectConversion',
+		'FileToLargeOrBinary',
+		'PathNotFoundInBaseTree',
+		'UnsupportedDirectoryEntry',
+		'UnsupportedTreeEntry',
+		'MissingDiffSpecAssociation'
+	]),
+	z.string({ description: 'The path to the file that could not be committed.' })
+]);
+
+export const CreateCommitOutcomeSchema = z.object({
+	newCommitId: z
+		.string({
+			description: 'The commit ID of the new commit. Null if the commit failed to be created.'
+		})
+		.nullable(),
+	pathsToRejectedChanges: z.array(RejectedChangesSchema, {
+		description: 'The paths to the files that could not be committed, and the reason why.'
+	})
 });

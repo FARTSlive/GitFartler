@@ -1,27 +1,28 @@
 import { vi } from 'vitest';
 import type {
-	StackUiState,
+	StackState,
 	ProjectUiState,
 	GlobalUiState,
-	StackUiSelection
+	StackSelection
 } from '$lib/state/uiState.svelte';
 
-const MOCK_UI_SELECTION: StackUiSelection = {
+const MOCK_UI_SELECTION: StackSelection = {
 	branchName: 'branch-a',
 	commitId: 'commit-a-id',
 	upstream: false
 };
 
-const MOCK_STACK_UI_STATE: StackUiState = {
-	selection: MOCK_UI_SELECTION,
-	activeSelectionId: { type: 'worktree' }
+const MOCK_STACK_UI_STATE: StackState = {
+	selection: MOCK_UI_SELECTION
 };
 
 const MOCK_PROJECT_UI_STATE: ProjectUiState = {
 	drawerPage: 'branch',
 	drawerFullScreen: false,
 	commitTitle: '',
-	commitDescription: ''
+	commitDescription: '',
+	branchesSelection: { branchName: 'test' },
+	stackId: undefined
 };
 
 const MOCK_GLOBAL_UI_STATE: GlobalUiState = {
@@ -29,11 +30,15 @@ const MOCK_GLOBAL_UI_STATE: GlobalUiState = {
 	leftWidth: 17.5,
 	stacksViewWidth: 21.25,
 	drawerSplitViewWidth: 20,
+	historySidebarWidth: 30,
 	useRichText: true,
 	aiSuggestionsOnType: true,
 	selectedTip: undefined,
 	channel: undefined,
-	draftBranchName: undefined
+	draftBranchName: undefined,
+	useRuler: false,
+	rulerCountValue: 0,
+	wrapTextByRuler: false
 };
 
 export function getUiStateMock() {
@@ -102,11 +107,6 @@ export function getUiStateMock() {
 			selection: {
 				get() {
 					return MOCK_STACK_UI_STATE.selection;
-				}
-			},
-			activeSelectionId: {
-				get() {
-					return MOCK_STACK_UI_STATE.activeSelectionId;
 				}
 			}
 		};

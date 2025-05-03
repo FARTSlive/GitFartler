@@ -1,15 +1,16 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { BranchListingDetails, type BranchListing } from '$lib/branches/branchListing';
 	import { BranchService } from '$lib/branches/branchService.svelte';
 	import { GitConfigService } from '$lib/config/gitConfigService';
 	import { Project } from '$lib/project/project';
+	import { previewStackPath } from '$lib/routes/routes.svelte';
 	import { UserService } from '$lib/user/userService';
 	import { inject } from '@gitbutler/shared/context';
 	import SidebarEntry from '@gitbutler/ui/SidebarEntry.svelte';
 	import { gravatarUrlFromEmail } from '@gitbutler/ui/avatar/gravatar';
 	import type { PullRequest } from '$lib/forge/interface/types';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
 
 	interface Props {
 		projectId: string;
@@ -49,12 +50,20 @@
 	function onMouseDown() {
 		if (branchListing.stack?.inWorkspace) {
 			goto(`/${project.id}/board`);
+		} else if (branchListing.stack) {
+			goto(`/${project.id}/preview-stack/${branchListing.stack.id}`);
 		} else {
 			goto(formatBranchURL(project, branchListing.name));
 		}
 	}
 
-	const selected = $derived(page.url.pathname === formatBranchURL(project, branchListing.name));
+	const selected = $derived.by(() => {
+		if (branchListing.stack) {
+			return page.url.pathname === previewStackPath(project.id, branchListing.stack?.id);
+		} else {
+			return page.url.pathname === formatBranchURL(project, branchListing.name);
+		}
+	});
 
 	function formatBranchURL(project: Project, name: string) {
 		return `/${project.id}/branch/${encodeURIComponent(name)}`;

@@ -6,7 +6,7 @@
 
 	interface BaseProps {
 		testId?: string;
-		children: Snippet<[item: any]>;
+		children?: Snippet<[item: any]>;
 		leftClickTrigger?: HTMLElement;
 		rightClickTrigger?: HTMLElement;
 		onclose?: () => void;
@@ -14,6 +14,7 @@
 		ontoggle?: (isOpen: boolean, isLeftClick: boolean) => void;
 		onclick?: () => void;
 		onkeypress?: () => void;
+		menu?: Snippet<[{ close: () => void }]>;
 	}
 
 	type HorizontalProps = BaseProps & {
@@ -42,7 +43,8 @@
 		onopen,
 		ontoggle,
 		onclick,
-		onkeypress
+		onkeypress,
+		menu
 	}: Props = $props();
 
 	let menuContainer: HTMLElement | undefined = $state();
@@ -99,7 +101,10 @@
 
 	function setAlignByMouse(e?: MouseEvent) {
 		if (!e) return;
-		menuPosition = { x: e.clientX, y: e.clientY };
+		const clientX = horizontalAlign === 'left' ? e.clientX - contextMenuWidth : e.clientX;
+		const clientY = side === 'top' ? e.clientY - contextMenuHeight : e.clientY;
+
+		menuPosition = { x: clientX, y: clientY };
 	}
 
 	function setAlignByTarget(target: HTMLElement) {
@@ -168,9 +173,11 @@
 						horizontalAlign = 'left';
 						setAlignment();
 					}
-					if (rect.bottom > viewport.bottom) {
-						side = 'top';
-						setAlignment();
+					if (rect.bottom > viewport.bottom && rect.top > viewport.top) {
+						setTimeout(() => {
+							side = 'top';
+							setAlignment();
+						}, 0);
 					}
 					if (rect.top < viewport.top) {
 						side = 'bottom';
@@ -220,41 +227,43 @@
 	}
 </script>
 
-{#snippet contextMenu()}
-	<!-- svelte-ignore a11y_autofocus -->
-	<div
-		data-testid={testId}
-		bind:this={menuContainer}
-		tabindex="-1"
-		use:focusTrap
-		autofocus
-		use:clickOutside={{
-			excludeElement: !savedMouseEvent ? leftClickTrigger ?? rightClickTrigger : undefined,
-			handler: () => close()
-		}}
-		bind:clientHeight={contextMenuHeight}
-		bind:clientWidth={contextMenuWidth}
-		{onclick}
-		{onkeypress}
-		onkeydown={handleKeyNavigation}
-		class="context-menu"
-		class:top-oriented={side === 'top'}
-		class:bottom-oriented={side === 'bottom'}
-		class:left-oriented={side === 'left'}
-		class:right-oriented={side === 'right'}
-		style:top="{menuPosition.y}px"
-		style:left="{menuPosition.x}px"
-		style:transform-origin={setTransformOrigin()}
-		style:--animation-transform-y-shift={side === 'top' ? '6px' : side === 'bottom' ? '-6px' : '0'}
-		role="menu"
-	>
-		{@render children(item)}
-	</div>
-{/snippet}
-
 {#if isVisible}
 	<div class="portal-wrap" use:portal={'body'}>
-		{@render contextMenu()}
+		<!-- svelte-ignore a11y_autofocus -->
+		<div
+			data-testid={testId}
+			bind:this={menuContainer}
+			tabindex="-1"
+			use:focusTrap
+			autofocus
+			use:clickOutside={{
+				excludeElement: !savedMouseEvent ? leftClickTrigger ?? rightClickTrigger : undefined,
+				handler: () => close()
+			}}
+			bind:clientHeight={contextMenuHeight}
+			bind:clientWidth={contextMenuWidth}
+			{onclick}
+			{onkeypress}
+			onkeydown={handleKeyNavigation}
+			class="context-menu"
+			class:top-oriented={side === 'top'}
+			class:bottom-oriented={side === 'bottom'}
+			class:left-oriented={side === 'left'}
+			class:right-oriented={side === 'right'}
+			style:top="{menuPosition.y}px"
+			style:left="{menuPosition.x}px"
+			style:transform-origin={setTransformOrigin()}
+			style:--animation-transform-y-shift={side === 'top'
+				? '6px'
+				: side === 'bottom'
+					? '-6px'
+					: '0'}
+			role="menu"
+		>
+			{@render children?.(item)}
+			<!-- TODO: refactor `children` and combine with this snippet. -->
+			{@render menu?.({ close })}
+		</div>
 	</div>
 {/if}
 

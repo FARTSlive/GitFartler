@@ -6,10 +6,13 @@
 	import WorktreeTipsFooter from '$components/v3/WorktreeTipsFooter.svelte';
 	import noChanges from '$lib/assets/illustrations/no-changes.svg?raw';
 	import { createCommitStore } from '$lib/commits/contexts';
-	import { FocusManager } from '$lib/focus/focusManager.svelte';
+	import { Focusable, FocusManager } from '$lib/focus/focusManager.svelte';
+	import { focusable } from '$lib/focus/focusable.svelte';
+	import { previousPathBytesFromTreeChange } from '$lib/hunks/change';
 	import { ChangeSelectionService, type SelectedFile } from '$lib/selection/changeSelection.svelte';
 	import { StackService } from '$lib/stacks/stackService.svelte';
 	import { UiState } from '$lib/state/uiState.svelte';
+	import { TestId } from '$lib/testing/testIds';
 	import { WorktreeService } from '$lib/worktree/worktreeService.svelte';
 	import { inject } from '@gitbutler/shared/context';
 	import Badge from '@gitbutler/ui/Badge.svelte';
@@ -24,7 +27,7 @@
 
 	let { projectId, stackId }: Props = $props();
 
-	const [changeSelection, worktreeService, uiState, stackService, focus] = inject(
+	const [changeSelection, worktreeService, uiState, stackService, focusManager] = inject(
 		ChangeSelectionService,
 		WorktreeService,
 		UiState,
@@ -36,15 +39,21 @@
 	const drawerPage = $derived(projectState.drawerPage.get());
 	const isCommitting = $derived(drawerPage.current === 'new-commit');
 	const stackState = $derived(stackId ? uiState.stack(stackId) : undefined);
+
 	const defaultBranchResult = $derived(
 		stackId !== undefined ? stackService.defaultBranch(projectId, stackId) : undefined
 	);
-	const defaultBranch = $derived(defaultBranchResult?.current.data);
-	const defaultBranchName = $derived(defaultBranch?.name);
+	const defaultBranchName = $derived(defaultBranchResult?.current.data);
+
 	const selectedChanges = changeSelection.list();
 	const noChangesSelected = $derived(selectedChanges.current.length === 0);
 	const changesResult = $derived(worktreeService.getChanges(projectId));
 	const affectedPaths = $derived(changesResult.current.data?.map((c) => c.path));
+
+	let focusGroup = focusManager.radioGroup({
+		triggers: [Focusable.UncommittedChanges, Focusable.ChangedFiles]
+	});
+	const listActive = $derived(focusGroup.current === Focusable.UncommittedChanges);
 
 	const filesFullySelected = $derived(
 		changeSelection.every(affectedPaths ?? [], (f) => f.type === 'full')
@@ -60,24 +69,17 @@
 		changeSelection.retain(affectedPaths);
 	});
 
-	const focusedArea = $derived(focus.current);
-
 	let listMode: 'list' | 'tree' = $state('list');
-
-	$effect(() => {
-		// If the focused area updates and it matches "left" then we update what
-		// selection should be shown in the main view.
-		if (focusedArea === 'left') {
-			stackState?.activeSelectionId.set({ type: 'worktree' });
-		}
-	});
 
 	function selectEverything() {
 		const affectedPaths =
-			changesResult.current.data?.map((c) => [c.path, c.pathBytes] as const) ?? [];
-		const files: SelectedFile[] = affectedPaths.map(([path, pathBytes]) => ({
+			changesResult.current.data?.map(
+				(c) => [c.path, c.pathBytes, previousPathBytesFromTreeChange(c)] as const
+			) ?? [];
+		const files: SelectedFile[] = affectedPaths.map(([path, pathBytes, previousPathBytes]) => ({
 			path,
 			pathBytes,
+			previousPathBytes,
 			type: 'full'
 		}));
 		changeSelection.addMany(files);
@@ -111,8 +113,15 @@
 <ReduxResult {stackId} {projectId} result={changesResult.current}>
 	{#snippet children(changes, { stackId, projectId })}
 		<ScrollableContainer wide>
-			<div class="uncommitted-changes-wrap">
-				<div use:stickyHeader class="worktree-header">
+			<div
+				class="uncommitted-changes-wrap"
+				use:focusable={{ id: Focusable.UncommittedChanges, parentId: Focusable.WorkspaceLeft }}
+			>
+				<div
+					data-testid={TestId.UncommittedChanges_Header}
+					use:stickyHeader
+					class="worktree-header"
+				>
 					<div class="worktree-header__general">
 						{#if isCommitting}
 							<Checkbox
@@ -132,7 +141,7 @@
 					<FileListMode bind:mode={listMode} persist="uncommitted" />
 				</div>
 				{#if changes.length > 0}
-					<div class="uncommitted-changes">
+					<div data-testid={TestId.UncommittedChanges_FileList} class="uncommitted-changes">
 						<FileList
 							selectionId={{ type: 'worktree' }}
 							showCheckboxes={isCommitting}
@@ -140,6 +149,7 @@
 							{stackId}
 							{changes}
 							{listMode}
+							{listActive}
 						/>
 					</div>
 					<div
@@ -148,11 +158,12 @@
 						class:sticked={isFooterSticky}
 					>
 						<Button
+							testId={TestId.StartCommitButton}
 							kind={isCommitting ? 'outline' : 'solid'}
 							type="button"
 							size="cta"
 							wide
-							disabled={isCommitting}
+							disabled={isCommitting || defaultBranchResult?.current.isLoading}
 							onclick={startCommit}
 						>
 							Start a commit…
@@ -184,9 +195,6 @@
 	}
 
 	.worktree-header {
-		position: sticky;
-		top: -1px;
-		z-index: var(--z-ground);
 		display: flex;
 		padding: 10px 10px 10px 14px;
 		width: 100%;
@@ -221,7 +229,7 @@
 	.start-commit {
 		position: sticky;
 		bottom: -1px;
-		padding: 16px;
+		padding: 14px;
 		background-color: var(--clr-bg-1);
 
 		&.sticked {

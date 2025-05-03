@@ -9,7 +9,9 @@ use gitbutler_command_context::CommandContext;
 use gitbutler_commit::commit_ext::CommitExt;
 use gitbutler_error::error::Marker;
 use gitbutler_operating_modes::OPEN_WORKSPACE_REFS;
-use gitbutler_oxidize::{git2_to_gix_object_id, gix_to_git2_oid, GixRepositoryExt, RepoExt};
+use gitbutler_oxidize::{
+    git2_to_gix_object_id, gix_to_git2_oid, GixRepositoryExt, ObjectIdExt, OidExt, RepoExt,
+};
 use gitbutler_project::access::WorktreeWritePermission;
 use gitbutler_repo::logging::{LogUntil, RepositoryExt as _};
 use gitbutler_repo::RepositoryExt;
@@ -50,7 +52,7 @@ pub(crate) fn get_workspace_head(ctx: &CommandContext) -> Result<git2::Oid> {
     let merge_tree_id = git2_to_gix_object_id(repo.find_commit(target.sha)?.tree_id());
     for stack in stacks.iter_mut() {
         stack.migrate_change_ids(ctx).ok(); // If it fails thats ok - best effort migration
-        let branch_head = repo.find_commit(stack.head(&gix_repo)?)?;
+        let branch_head = repo.find_commit(stack.head_oid(&gix_repo)?.to_git2())?;
         let branch_tree_id =
             git2_to_gix_object_id(repo.find_real_tree(&branch_head, Default::default())?.id());
 
@@ -78,9 +80,8 @@ pub(crate) fn get_workspace_head(ctx: &CommandContext) -> Result<git2::Oid> {
     let gix_repo = repo.to_gix()?;
     let mut heads: Vec<git2::Commit<'_>> = stacks
         .iter()
-        .filter_map(|stack| stack.head(&gix_repo).ok())
-        .filter(|h| h != &target.sha)
-        .filter_map(|h| repo.find_commit(h).ok())
+        .filter_map(|stack| stack.head_oid(&gix_repo).ok())
+        .filter_map(|h| repo.find_commit(h.to_git2()).ok())
         .collect();
 
     if heads.is_empty() {
@@ -191,9 +192,9 @@ pub fn update_workspace_commit(
             message.push_str(format!(" ({})", &branch.refname()?).as_str());
             message.push('\n');
 
-            if branch.head(&gix_repo)? != target.sha {
+            if branch.head_oid(&gix_repo)? != target.sha.to_gix() {
                 message.push_str("   branch head: ");
-                message.push_str(&branch.head(&gix_repo)?.to_string());
+                message.push_str(&branch.head_oid(&gix_repo)?.to_string());
                 message.push('\n');
             }
             for file in &branch.ownership.claims {
@@ -245,40 +246,42 @@ pub fn update_workspace_commit(
     index.read_tree(&workspace_tree)?;
     index.write()?;
 
-    // finally, update the refs/gitbutler/ heads to the states of the current virtual branches
-    for branch in &virtual_branches {
-        let wip_tree = repo.find_tree(branch.tree(ctx)?)?;
-        let mut branch_head = repo.find_commit(branch.head(&gix_repo)?)?;
-        let head_tree = branch_head.tree()?;
+    if !ctx.app_settings().feature_flags.v3 {
+        // finally, update the refs/gitbutler/ heads to the states of the current virtual branches
+        for branch in &virtual_branches {
+            let wip_tree = repo.find_tree(branch.tree(ctx)?)?;
+            let mut branch_head = repo.find_commit(branch.head_oid(&gix_repo)?.to_git2())?;
+            let head_tree = branch_head.tree()?;
 
-        // create a wip commit if there is wip
-        if head_tree.id() != wip_tree.id() {
-            let mut message = "GitButler WIP Commit".to_string();
-            message.push_str("\n\n");
-            message.push_str("This is a WIP commit for the virtual branch '");
-            message.push_str(branch.name.as_str());
-            message.push_str("'\n\n");
-            message.push_str("This commit is used to store the state of the virtual branch\n");
-            message.push_str("while you are working on it. It is not meant to be used for\n");
-            message.push_str("anything else.\n\n");
-            let branch_head_oid = repo.commit(
-                None,
-                &committer,
-                &committer,
-                &message,
-                &wip_tree,
-                &[&branch_head],
-                // None,
+            // create a wip commit if there is wip
+            if head_tree.id() != wip_tree.id() {
+                let mut message = "GitButler WIP Commit".to_string();
+                message.push_str("\n\n");
+                message.push_str("This is a WIP commit for the virtual branch '");
+                message.push_str(branch.name.as_str());
+                message.push_str("'\n\n");
+                message.push_str("This commit is used to store the state of the virtual branch\n");
+                message.push_str("while you are working on it. It is not meant to be used for\n");
+                message.push_str("anything else.\n\n");
+                let branch_head_oid = repo.commit(
+                    None,
+                    &committer,
+                    &committer,
+                    &message,
+                    &wip_tree,
+                    &[&branch_head],
+                    // None,
+                )?;
+                branch_head = repo.find_commit(branch_head_oid)?;
+            }
+
+            repo.reference(
+                &branch.refname()?.to_string(),
+                branch_head.id(),
+                true,
+                "update virtual branch",
             )?;
-            branch_head = repo.find_commit(branch_head_oid)?;
         }
-
-        repo.reference(
-            &branch.refname()?.to_string(),
-            branch_head.id(),
-            true,
-            "update virtual branch",
-        )?;
     }
 
     Ok(final_commit)
@@ -377,7 +380,7 @@ fn verify_head_is_clean(ctx: &CommandContext, perm: &mut WorktreeWritePermission
 
     // rebasing the extra commits onto the new branch
     let gix_repo = ctx.repo().to_gix()?;
-    let mut head = new_branch.head(&gix_repo)?;
+    let mut head = new_branch.head_oid(&gix_repo)?.to_git2();
     for commit in extra_commits {
         let new_branch_head = ctx
             .repo()

@@ -5,26 +5,27 @@
 	import CommitDetails from '$components/v3/CommitDetails.svelte';
 	import CommitHeader from '$components/v3/CommitHeader.svelte';
 	import CommitLine from '$components/v3/CommitLine.svelte';
-	import CommitMessageInput from '$components/v3/CommitMessageInput.svelte';
+	import CommitMessageEditor from '$components/v3/CommitMessageEditor.svelte';
 	import ConflictResolutionConfirmModal from '$components/v3/ConflictResolutionConfirmModal.svelte';
 	import Drawer from '$components/v3/Drawer.svelte';
-	import { getCommitType } from '$components/v3/lib';
+	import { getCommitType, isLocalAndRemoteCommit } from '$components/v3/lib';
 	import { writeClipboard } from '$lib/backend/clipboard';
-	import { BaseBranch } from '$lib/baseBranch/baseBranch';
-	import { type Commit } from '$lib/branches/v3';
-	import { FocusManager } from '$lib/focus/focusManager.svelte';
+	import { isCommit, type Commit } from '$lib/branches/v3';
+	import { CommitStatus, type CommitKey } from '$lib/commits/commit';
 	import { DefaultForgeFactory } from '$lib/forge/forgeFactory.svelte';
 	import { ModeService } from '$lib/mode/modeService';
 	import { showToast } from '$lib/notifications/toasts';
 	import { StackService } from '$lib/stacks/stackService.svelte';
 	import { UiState } from '$lib/state/uiState.svelte';
+	import { TestId } from '$lib/testing/testIds';
+	import { splitMessage } from '$lib/utils/commitMessage';
 	import { inject } from '@gitbutler/shared/context';
 	import { getContext, maybeGetContext } from '@gitbutler/shared/context';
+	import AsyncButton from '@gitbutler/ui/AsyncButton.svelte';
 	import Button from '@gitbutler/ui/Button.svelte';
 	import ContextMenu from '@gitbutler/ui/ContextMenu.svelte';
 	import Icon from '@gitbutler/ui/Icon.svelte';
 	import Tooltip from '@gitbutler/ui/Tooltip.svelte';
-	import type { CommitKey } from '$lib/commits/commit';
 
 	type Props = {
 		projectId: string;
@@ -34,15 +35,15 @@
 
 	const { projectId, stackId, commitKey }: Props = $props();
 
-	const [stackService, uiState, focus] = inject(StackService, UiState, FocusManager);
+	const [stackService, uiState] = inject(StackService, UiState);
 
 	let conflictResolutionConfirmationModal =
 		$state<ReturnType<typeof ConflictResolutionConfirmModal>>();
 
 	const forge = getContext(DefaultForgeFactory);
 	const modeService = maybeGetContext(ModeService);
-	const baseBranch = getContext(BaseBranch);
 	const stackState = $derived(uiState.stack(stackId));
+	const projectState = $derived(uiState.project(projectId));
 	const selected = $derived(stackState.selection.get());
 	const branchName = $derived(selected.current?.branchName);
 
@@ -51,24 +52,15 @@
 			? stackService.upstreamCommitById(projectId, commitKey)
 			: stackService.commitById(projectId, commitKey)
 	);
-	const conflicted = $derived((commitResult.current.data as Commit).hasConflicts);
-	const isAncestorMostConflicted = false; // TODO
-	const isUnapplied = false; // TODO
-	const branchRefName = undefined; // TODO
+
+	const changesResult = $derived(stackService.commitChanges(projectId, commitKey.commitId));
 
 	const [updateCommitMessage, messageUpdateResult] = stackService.updateCommitMessage;
-
-	const focusedArea = $derived(focus.current);
-	$effect(() => {
-		if (focusedArea === 'commit') {
-			stackState.activeSelectionId.set({ type: 'commit', commitId: commitKey.commitId });
-		}
-	});
 
 	type Mode = 'view' | 'edit';
 
 	let mode = $state<Mode>('view');
-	let commitMessageInput = $state<ReturnType<typeof CommitMessageInput>>();
+	let commitMessageInput = $state<ReturnType<typeof CommitMessageEditor>>();
 
 	function setMode(newMode: Mode) {
 		mode = newMode;
@@ -96,22 +88,6 @@
 		setMode('view');
 	}
 
-	function getCommitTitile(message: string): string | undefined {
-		// Return undefined if there is no title
-		return message.split('\n').slice(0, 1).join('\n') || undefined;
-	}
-
-	function getCommitDescription(message: string): string | undefined {
-		// Return undefined if there is no description
-		const lines = message.split('\n');
-		for (let i = 1; i < lines.length; i++) {
-			if (lines[i]!.trim()) {
-				return lines.slice(i).join('\n');
-			}
-		}
-		return undefined;
-	}
-
 	function getCommitLabel(commit: Partial<Commit>) {
 		const commitType = commit ? getCommitType(commit as Commit) : 'unknown';
 
@@ -133,66 +109,67 @@
 	let isContextMenuOpen = $state(false);
 
 	async function handleUncommit() {
-		if (!baseBranch || !branchName) {
-			console.error('Unable to undo commit');
-			return;
-		}
+		if (!branchName) return;
 		await stackService.uncommit({ projectId, stackId, branchName, commitId: commitKey.commitId });
-	}
-
-	function openCommitMessageModal() {
-		// TODO: Implement openCommitMessageModal
+		projectState.drawerPage.set(undefined);
+		if (branchName) stackState.selection.set({ branchName, commitId: undefined });
 	}
 
 	function canEdit() {
-		if (isUnapplied) return false;
-		if (!modeService) return false;
-
-		return true;
+		return modeService !== undefined;
 	}
 
 	async function editPatch() {
-		if (!canEdit() || !branchRefName) return;
-		modeService!.enterEditMode(commitKey.commitId, stackId);
-	}
-
-	async function handleEditPatch() {
-		if (conflicted && !isAncestorMostConflicted) {
-			conflictResolutionConfirmationModal?.show();
-			return;
-		}
-		await editPatch();
+		if (!canEdit()) return;
+		await modeService!.enterEditMode(commitKey.commitId, stackId);
 	}
 </script>
 
 <ReduxResult {stackId} {projectId} result={commitResult.current}>
 	{#snippet children(commit, env)}
+		{@const isConflicted = isCommit(commit) && commit.hasConflicts}
 		{#if mode === 'edit'}
 			<Drawer
+				testId={TestId.EditCommitMessageDrawer}
 				projectId={env.projectId}
 				stackId={env.stackId}
 				title="Edit commit message"
 				disableScroll
 				minHeight={20}
 			>
-				<CommitMessageInput
+				<CommitMessageEditor
 					bind:this={commitMessageInput}
 					projectId={env.projectId}
 					stackId={env.stackId}
 					action={editCommitMessage}
 					actionLabel="Save"
 					onCancel={() => setMode('view')}
-					initialTitle={getCommitTitile(commit.message)}
-					initialMessage={getCommitDescription(commit.message)}
+					initialTitle={splitMessage(commit.message).title}
+					initialMessage={splitMessage(commit.message).description}
 					loading={messageUpdateResult.current.isLoading}
 					existingCommitId={commit.id}
 				/>
 			</Drawer>
 		{:else}
-			<Drawer projectId={env.projectId} stackId={env.stackId} splitView>
+			<Drawer testId={TestId.CommitDrawer} projectId={env.projectId} stackId={env.stackId}>
 				{#snippet header()}
 					<div class="commit-view__header text-13">
-						<CommitLine width={24} {commit} />
+						{#if isLocalAndRemoteCommit(commit)}
+							<CommitLine
+								commitStatus={commit.state.type}
+								diverged={commit.state.type === 'LocalAndRemote' &&
+									commit.id !== commit.state.subject}
+								tooltip={commit.state.type}
+								width={24}
+							/>
+						{:else}
+							<CommitLine
+								commitStatus="Remote"
+								diverged={false}
+								tooltip={CommitStatus.Remote}
+								width={24}
+							/>
+						{/if}
 
 						<div class="commit-view__header-title text-13">
 							<span class="text-semibold">{getCommitLabel(commit)} commit:</span>
@@ -231,22 +208,57 @@
 				{/snippet}
 
 				<div class="commit-view">
-					<CommitHeader {commit} class="text-14 text-semibold text-body" />
-					<CommitDetails
-						projectId={env.projectId}
-						{branchName}
-						{commit}
-						stackId={env.stackId}
-						onEditCommitMessage={() => setMode('edit')}
+					<CommitHeader
+						commitMessage={commit.message}
+						className="text-14 text-semibold text-body"
 					/>
+					<CommitDetails {commit}>
+						<Button
+							testId={TestId.CommitDrawerActionEditMessage}
+							size="tag"
+							kind="outline"
+							icon="edit-small"
+							onclick={() => {
+								setMode('edit');
+							}}
+						>
+							Edit message
+						</Button>
+
+						{#if !isConflicted}
+							<AsyncButton
+								testId={TestId.CommitDrawerActionUncommit}
+								size="tag"
+								kind="outline"
+								icon="undo-small"
+								action={async () => await handleUncommit()}
+							>
+								Uncommit
+							</AsyncButton>
+						{/if}
+
+						<AsyncButton size="tag" kind="outline" action={editPatch}>
+							{#if isConflicted}
+								Resolve conflicts
+							{:else}
+								Edit commit
+							{/if}
+						</AsyncButton>
+					</CommitDetails>
 				</div>
 
 				{#snippet filesSplitView()}
-					<ChangedFiles
-						projectId={env.projectId}
-						stackId={env.stackId}
-						selectionId={{ type: 'commit', commitId: commitKey.commitId }}
-					/>
+					<ReduxResult {projectId} {stackId} result={changesResult.current}>
+						{#snippet children(changes)}
+							<ChangedFiles
+								title="Changed files"
+								projectId={env.projectId}
+								stackId={env.stackId}
+								selectionId={{ type: 'commit', commitId: commit.id }}
+								{changes}
+							/>
+						{/snippet}
+					</ReduxResult>
 				{/snippet}
 			</Drawer>
 		{/if}
@@ -256,21 +268,26 @@
 			onSubmit={editPatch}
 		/>
 
-		<CommitContextMenu
-			bind:menu={contextMenu}
-			{projectId}
-			leftClickTrigger={kebabContextMenuTrigger}
-			{baseBranch}
-			{stackId}
-			{commit}
-			commitUrl={forge.current.commitUrl(commit.id)}
-			onUncommitClick={handleUncommit}
-			onEditMessageClick={openCommitMessageModal}
-			onPatchEditClick={handleEditPatch}
-			onToggle={(isOpen) => {
-				isContextMenuOpen = isOpen;
-			}}
-		/>
+		<ContextMenu leftClickTrigger={kebabContextMenuTrigger}>
+			{#snippet menu({ close })}
+				<CommitContextMenu
+					{close}
+					{projectId}
+					{stackId}
+					commitId={commit.id}
+					commitMessage={commit.message}
+					commitStatus={isLocalAndRemoteCommit(commit) ? commit.state.type : 'Remote'}
+					commitUrl={forge.current.commitUrl(commit.id)}
+					onUncommitClick={handleUncommit}
+					onEditMessageClick={() => {
+						setMode('edit');
+					}}
+					onToggle={(isOpen) => {
+						isContextMenuOpen = isOpen;
+					}}
+				/>
+			{/snippet}
+		</ContextMenu>
 	{/snippet}
 </ReduxResult>
 

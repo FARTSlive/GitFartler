@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { getContext } from '@gitbutler/shared/context';
 	import Loading from '@gitbutler/shared/network/Loading.svelte';
 	import { isFound } from '@gitbutler/shared/network/loadable';
@@ -8,7 +9,6 @@
 	} from '@gitbutler/shared/organizations/projectsPreview.svelte';
 	import { WebRoutesService } from '@gitbutler/shared/routing/webRoutes.svelte';
 	import Icon from '@gitbutler/ui/Icon.svelte';
-	import { goto } from '$app/navigation';
 
 	type Props = {
 		showOwner?: boolean;
@@ -43,10 +43,9 @@
 
 <Loading loadable={project.current}>
 	{#snippet children(project)}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div
-			class="project"
+		<button
+			type="button"
+			class="project-btn"
 			class:current={focused}
 			onclick={() => {
 				goto(routes.projectReviewPath({ ownerSlug: project.owner, projectSlug: project.slug }));
@@ -59,14 +58,14 @@
 					<Icon name="chevron-right"></Icon>
 				</div>
 			</div>
-		</div>
+		</button>
 	{/snippet}
 </Loading>
 
 <style lang="postcss">
-	.project {
+	.project-btn {
 		display: flex;
-
+		width: 100%;
 		align-items: center;
 		cursor: pointer;
 

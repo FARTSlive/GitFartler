@@ -1,6 +1,7 @@
 import { PostHogWrapper } from '$lib/analytics/posthog';
+import { isTauriCommandError, type TauriCommandError } from '$lib/backend/ipc';
 import { Tauri } from '$lib/backend/tauri';
-import { isBackendError } from '$lib/error/typeguards';
+import { isErrorlike } from '@gitbutler/ui/utils/typeguards';
 import { type BaseQueryApi, type QueryReturnValue } from '@reduxjs/toolkit/query';
 
 export type TauriBaseQueryFn = typeof tauriBaseQuery;
@@ -22,19 +23,20 @@ export async function tauriBaseQuery(
 		}
 		return result;
 	} catch (error: unknown) {
-		if (isBackendError(error)) {
-			const result = { error: { message: error.message, code: error.code } };
-			if (posthog && args.actionName) {
-				posthog.capture(`${args.actionName} Failed`, result);
-			}
-			return result;
+		if (posthog && args.actionName) {
+			posthog.capture(`${args.actionName} Failed`, { error });
 		}
 
-		const result = { error: { message: String(error) } };
-		if (posthog && args.actionName) {
-			posthog.capture(`${args.actionName} Failed`, result);
+		const name = `API error: ${args.actionName} (${args.command})`;
+		if (isTauriCommandError(error)) {
+			const newMessage =
+				`command: ${args.command}\nparams: ${JSON.stringify(args.params)})\n\n` + error.message;
+			throw { name, message: newMessage, code: error.code };
+		} else if (isErrorlike(error)) {
+			throw { name, message: error.message };
+		} else {
+			throw { name, message: String(error) };
 		}
-		return result;
 	}
 }
 
@@ -43,19 +45,6 @@ type ApiArgs = {
 	params: Record<string, unknown>;
 	actionName?: string;
 };
-
-export type TauriCommandError = { message: string; code?: string };
-
-export function isTauriCommandError(something: unknown): something is TauriCommandError {
-	return (
-		!!something &&
-		typeof something === 'object' &&
-		something !== null &&
-		'message' in something &&
-		typeof (something as TauriCommandError).message === 'string' &&
-		('code' in something ? typeof (something as TauriCommandError).code === 'string' : true)
-	);
-}
 
 /**
  * Typeguard for accessing injected Tauri dependency safely.

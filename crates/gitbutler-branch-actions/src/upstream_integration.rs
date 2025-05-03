@@ -324,7 +324,7 @@ fn get_stack_status(
         });
     }
 
-    let stack_head = repo.find_commit(stack.head(gix_repo)?)?;
+    let stack_head = repo.find_commit(stack.head_oid(gix_repo)?.to_git2())?;
 
     let tree_status;
     if ctx.app_settings().feature_flags.v3 {
@@ -381,7 +381,7 @@ pub fn upstream_integration_statuses(
 
     let heads = stacks_in_workspace
         .iter()
-        .map(|stack| stack.head(&gix_repo).map(|h| h.to_gix()))
+        .map(|stack| stack.head_oid(&gix_repo))
         .chain(Some(Ok(new_target.id().to_gix())))
         .collect::<Result<Vec<_>>>()?;
 
@@ -406,6 +406,19 @@ pub fn upstream_integration_statuses(
     let (merge_options_fail_fast, _conflict_kind) =
         gix_repo.merge_options_no_rewrites_fail_fast()?;
 
+    let merge_outcome = gix_repo.merge_trees(
+        merge_base_tree,
+        gix_repo.head()?.peel_to_commit_in_place()?.tree_id()?,
+        target_tree,
+        gix_repo.default_merge_labels(),
+        merge_options_fail_fast.clone(),
+    )?;
+    let committed_conflicts = merge_outcome
+        .conflicts
+        .iter()
+        .filter(|c| c.is_unresolved(TreatAsUnresolved::git()))
+        .collect::<Vec<_>>();
+
     let worktree_conflicts = gix_repo
         .merge_trees(
             merge_base_tree,
@@ -417,6 +430,8 @@ pub fn upstream_integration_statuses(
         .conflicts
         .iter()
         .filter(|c| c.is_unresolved(TreatAsUnresolved::git()))
+        // only include conflicts that are not in the list committed_conflicts
+        .filter(|c| !committed_conflicts.iter().any(|cc| cc.ours == c.ours))
         .map(|c| c.ours.location().into())
         .collect::<Vec<BStringForFrontend>>();
 
@@ -530,8 +545,7 @@ pub(crate) fn integrate_upstream(
                 continue;
             };
 
-            ctx.branch_manager()
-                .save_and_unapply(*stack_id, permission)?;
+            ctx.branch_manager().unapply(*stack_id, permission, false)?;
         }
 
         let mut stacks = virtual_branches_state.list_stacks_in_workspace()?;
@@ -693,7 +707,8 @@ fn compute_resolutions(
                     // Make a merge commit on top of the branch commits,
                     // then rebase the tree ontop of that. If the tree ends
                     // up conflicted, commit the tree.
-                    let target_commit = repo.find_commit(branch_stack.head(context.gix_repo)?)?;
+                    let target_commit =
+                        repo.find_commit(branch_stack.head_oid(context.gix_repo)?.to_git2())?;
                     let top_branch = branch_stack.heads.last().context("top branch not found")?;
 
                     // These two go into the merge commit message.

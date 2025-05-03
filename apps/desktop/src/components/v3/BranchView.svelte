@@ -1,27 +1,24 @@
 <script lang="ts">
+	import BranchRenameModal from '$components/BranchRenameModal.svelte';
 	import BranchReview from '$components/BranchReview.svelte';
+	import DeleteBranchModal from '$components/DeleteBranchModal.svelte';
 	import ReduxResult from '$components/ReduxResult.svelte';
-	import SeriesHeaderContextMenu from '$components/SeriesHeaderContextMenu.svelte';
-	import BranchBadge from '$components/v3/BranchBadge.svelte';
+	import SeriesHeaderContextMenuContents from '$components/SeriesHeaderContextMenuContents.svelte';
+	import BranchDetails from '$components/v3/BranchDetails.svelte';
 	import ChangedFiles from '$components/v3/ChangedFiles.svelte';
 	import Drawer from '$components/v3/Drawer.svelte';
 	import NewBranchModal from '$components/v3/NewBranchModal.svelte';
 	import newBranchSmolSVG from '$lib/assets/empty-state/new-branch-smol.svg?raw';
-	import { FocusManager } from '$lib/focus/focusManager.svelte';
 	import { DefaultForgeFactory } from '$lib/forge/forgeFactory.svelte';
 	import { StackService } from '$lib/stacks/stackService.svelte';
 	import { combineResults } from '$lib/state/helpers';
-	import { UiState } from '$lib/state/uiState.svelte';
 	import { TestId } from '$lib/testing/testIds';
-	import { UserService } from '$lib/user/userService';
 	import { openExternalUrl } from '$lib/utils/url';
 	import { inject } from '@gitbutler/shared/context';
 	import Button from '@gitbutler/ui/Button.svelte';
 	import ContextMenu from '@gitbutler/ui/ContextMenu.svelte';
 	import Icon from '@gitbutler/ui/Icon.svelte';
 	import Tooltip from '@gitbutler/ui/Tooltip.svelte';
-	import AvatarGroup from '@gitbutler/ui/avatar/AvatarGroup.svelte';
-	import { getTimeAgo } from '@gitbutler/ui/utils/timeAgo';
 
 	interface Props {
 		stackId: string;
@@ -31,40 +28,14 @@
 
 	const { stackId, projectId, branchName }: Props = $props();
 
-	const [stackService, userService, uiState, focus, forge] = inject(
-		StackService,
-		UserService,
-		UiState,
-		FocusManager,
-		DefaultForgeFactory
-	);
-	const stackState = $derived(uiState.stack(stackId));
-	const focusedArea = $derived(focus.current);
-	const user = $derived(userService.user);
+	const [stackService, forge] = inject(StackService, DefaultForgeFactory);
 
 	const branchesResult = $derived(stackService.branches(projectId, stackId));
 
-	const branchResult = $derived(stackService.branchByName(projectId, stackId, branchName));
-	const branchDetailsResult = $derived(stackService.branchDetails(projectId, stackId, branchName));
+	const branchResult = $derived(stackService.branchDetails(projectId, stackId, branchName));
 	const topCommitResult = $derived(stackService.commitAt(projectId, stackId, branchName, 0));
 
 	const forgeBranch = $derived(forge.current?.branch(branchName));
-
-	$effect(() => {
-		if (focusedArea === 'commit') {
-			stackState.activeSelectionId.set({ type: 'branch', stackId, branchName });
-		}
-	});
-
-	function getGravatarUrl(email: string, existingGravatarUrl: string): string {
-		if ($user?.email === undefined) {
-			return existingGravatarUrl;
-		}
-		if (email === $user.email) {
-			return $user.picture ?? existingGravatarUrl;
-		}
-		return existingGravatarUrl;
-	}
 
 	// context menu
 	let contextMenu = $state<ReturnType<typeof ContextMenu>>();
@@ -72,22 +43,19 @@
 	let isContextMenuOpen = $state(false);
 
 	let newBranchModal = $state<ReturnType<typeof NewBranchModal>>();
+	let renameBranchModal = $state<BranchRenameModal>();
+	let deleteBranchModal = $state<DeleteBranchModal>();
 </script>
 
 <ReduxResult
 	{stackId}
 	{projectId}
-	result={combineResults(
-		branchResult.current,
-		branchesResult.current,
-		branchDetailsResult.current,
-		topCommitResult.current
-	)}
+	result={combineResults(branchesResult.current, branchResult.current, topCommitResult.current)}
 >
-	{#snippet children([branch, branches, branchDetails, topCommit], { stackId, projectId })}
+	{#snippet children([branches, branch, topCommit], { stackId, projectId })}
 		{@const hasCommits = !!topCommit}
 		{@const remoteTrackingBranch = branch.remoteTrackingBranch}
-		<Drawer {projectId} {stackId} splitView={hasCommits}>
+		<Drawer {projectId} {stackId}>
 			{#snippet header()}
 				<div class="branch__header">
 					{#if hasCommits}
@@ -121,34 +89,15 @@
 			{/snippet}
 
 			{#if hasCommits}
-				<div class="branch-view">
-					<div class="branch-view__header-container">
-						<div class="text-12 branch-view__header-details-row">
-							<BranchBadge pushStatus={branchDetails.pushStatus} />
-							<span class="branch-view__details-divider">•</span>
-
-							{#if branchDetails.isConflicted}
-								<span class="branch-view__header-details-row-conflict">Has conflicts</span>
-								<span class="branch-view__details-divider">•</span>
-							{/if}
-
-							<span>Contribs:</span>
-							<AvatarGroup
-								maxAvatars={2}
-								avatars={branchDetails.authors.map((a) => ({
-									name: a.name,
-									srcUrl: getGravatarUrl(a.email, a.gravatarUrl)
-								}))}
-							/>
-
-							<span class="branch-view__details-divider">•</span>
-
-							<span class="truncate">{getTimeAgo(new Date(branchDetails.lastUpdatedAt))}</span>
-						</div>
-					</div>
-
-					<BranchReview {stackId} {projectId} branchName={branch.name} />
-				</div>
+				<BranchDetails {branch}>
+					<BranchReview
+						{stackId}
+						{projectId}
+						branchName={branch.name}
+						prNumber={branch.prNumber || undefined}
+						reviewId={branch.reviewId || undefined}
+					/>
+				</BranchDetails>
 			{:else}
 				<div class="branch-view__empty-state">
 					<div class="branch-view__empty-state__image">
@@ -165,13 +114,19 @@
 			{/if}
 
 			{#snippet filesSplitView()}
-				{#if hasCommits}
-					<ChangedFiles
-						{projectId}
-						{stackId}
-						selectionId={{ type: 'branch', branchName: branch.name, stackId }}
-					/>
-				{/if}
+				{@const changesResult = stackService.branchChanges({ projectId, stackId, branchName })}
+				<ReduxResult {projectId} {stackId} result={changesResult.current}>
+					{#snippet children(changes, { projectId, stackId })}
+						<ChangedFiles
+							testId={TestId.BranchChangedFileList}
+							title="All changed files"
+							{projectId}
+							{stackId}
+							selectionId={{ type: 'branch', stackId, branchName }}
+							{changes}
+						/>
+					{/snippet}
+				</ReduxResult>
 			{/snippet}
 		</Drawer>
 
@@ -182,7 +137,7 @@
 			testId={TestId.BranchHeaderContextMenu}
 			leftClickTrigger={kebabTrigger}
 		>
-			<SeriesHeaderContextMenu
+			<SeriesHeaderContextMenuContents
 				{projectId}
 				contextMenuEl={contextMenu}
 				{stackId}
@@ -200,19 +155,31 @@
 				}}
 				isPushed={!!branch.remoteTrackingBranch}
 				branchType={topCommit?.state.type || 'LocalOnly'}
+				showBranchRenameModal={() => {
+					renameBranchModal?.show();
+				}}
+				showDeleteBranchModal={() => {
+					deleteBranchModal?.show();
+				}}
 			/>
 		</ContextMenu>
+		<BranchRenameModal
+			{projectId}
+			{stackId}
+			branchName={branch.name}
+			bind:this={renameBranchModal}
+			isPushed={!!branch.remoteTrackingBranch}
+		/>
+		<DeleteBranchModal
+			{projectId}
+			{stackId}
+			branchName={branch.name}
+			bind:this={deleteBranchModal}
+		/>
 	{/snippet}
 </ReduxResult>
 
 <style>
-	.branch-view {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-		height: 100%;
-	}
-
 	.branch__header {
 		display: flex;
 		align-items: center;
@@ -238,30 +205,6 @@
 		}
 	}
 
-	.branch-view__header-container {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 16px;
-		overflow: hidden;
-	}
-
-	.branch-view__header-details-row {
-		width: 100%;
-		color: var(--clr-text-2);
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.branch-view__header-details-row-conflict {
-		color: var(--clr-theme-err-element);
-	}
-
-	.branch-view__details-divider {
-		color: var(--clr-text-3);
-	}
-
 	/* EMPTY STATE */
 	.branch-view__empty-state {
 		flex: 1;
@@ -271,6 +214,10 @@
 		padding: 30px;
 		max-width: 540px;
 		margin: 0 auto;
+
+		@container drawer-content (max-width: 400px) {
+			padding: 10px;
+		}
 	}
 
 	.branch-view__empty-state__image {

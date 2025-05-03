@@ -7,30 +7,41 @@ import {
 	type UnknownAction
 } from '@reduxjs/toolkit';
 import storage from 'redux-persist/lib/storage';
-import type { SelectionId } from '$lib/selection/key';
-export type DrawerPage = 'branch' | 'new-commit' | 'review' | 'branch' | undefined;
+export type DrawerPage = 'branch' | 'new-commit' | 'review' | undefined;
 
 export const uiStatePersistConfig = {
 	key: 'uiState',
 	storage: storage
 };
 
-export type StackUiSelection = {
+export type StackSelection = {
 	branchName: string;
 	commitId?: string;
 	upstream?: boolean;
 };
 
-export type StackUiState = {
-	selection: StackUiSelection | undefined;
-	activeSelectionId: SelectionId;
+export type StackState = {
+	selection: StackSelection | undefined;
+};
+
+type BranchesSelection = {
+	branchName?: string;
+	commitId?: string;
+	stackId?: string;
+	remote?: string;
+	hasLocal?: boolean;
+	isTarget?: boolean;
+	inWorkspace?: boolean;
+	prNumber?: number;
 };
 
 export type ProjectUiState = {
 	drawerPage: DrawerPage;
 	drawerFullScreen: boolean;
+	stackId: string | undefined;
 	commitTitle: string;
 	commitDescription: string;
+	branchesSelection: BranchesSelection;
 };
 
 export type GlobalUiState = {
@@ -38,7 +49,11 @@ export type GlobalUiState = {
 	leftWidth: number;
 	stacksViewWidth: number;
 	drawerSplitViewWidth: number;
+	historySidebarWidth: number;
 	useRichText: boolean;
+	useRuler: boolean;
+	rulerCountValue: number;
+	wrapTextByRuler: boolean;
 	aiSuggestionsOnType: boolean;
 	selectedTip: number | undefined;
 	channel: string | undefined;
@@ -52,9 +67,8 @@ export class UiState {
 	private state = $state<EntityState<UiStateVariable, string>>(uiStateSlice.getInitialState());
 
 	/** Properties scoped to a specific stack. */
-	readonly stack = this.buildScopedProps<StackUiState>({
-		selection: undefined,
-		activeSelectionId: { type: 'worktree' }
+	readonly stack = this.buildScopedProps<StackState>({
+		selection: undefined
 	});
 
 	/** Properties scoped to a specific project. */
@@ -62,7 +76,9 @@ export class UiState {
 		drawerPage: undefined,
 		drawerFullScreen: false,
 		commitTitle: '',
-		commitDescription: ''
+		commitDescription: '',
+		branchesSelection: {},
+		stackId: undefined
 	});
 
 	/** Properties that are globally scoped. */
@@ -71,7 +87,11 @@ export class UiState {
 		leftWidth: 17.5,
 		stacksViewWidth: 21.25,
 		drawerSplitViewWidth: 20,
-		useRichText: true,
+		historySidebarWidth: 30,
+		useRichText: false,
+		useRuler: false,
+		rulerCountValue: 72,
+		wrapTextByRuler: false,
 		aiSuggestionsOnType: false,
 		selectedTip: undefined,
 		channel: undefined,

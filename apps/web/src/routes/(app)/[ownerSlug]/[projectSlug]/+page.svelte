@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import ProjectConnectModal from '$lib/components/ProjectConnectModal.svelte';
 	import ReviewsSection from '$lib/components/ReviewsSection.svelte';
 	import { featureShowProjectPage } from '$lib/featureFlags';
@@ -15,7 +16,6 @@
 	import Modal from '@gitbutler/ui/Modal.svelte';
 	import Markdown from '@gitbutler/ui/markdown/Markdown.svelte';
 	import toasts from '@gitbutler/ui/toasts';
-	import { goto } from '$app/navigation';
 
 	interface Props {
 		data: ProjectParameters;
@@ -639,7 +639,7 @@
 		margin-bottom: 1rem;
 		border: 1px solid var(--border-color, #eaeaea);
 		border-radius: 4px;
-		font-family: monospace;
+		font-family: var(--fontfamily-mono);
 		resize: vertical;
 	}
 
@@ -699,7 +699,7 @@
 			background: var(--background-alt, #f5f5f5);
 			padding: 0.25rem 0.5rem;
 			border-radius: 4px;
-			font-family: monospace;
+			font-family: var(--fontfamily-mono);
 			overflow: hidden;
 			text-overflow: ellipsis;
 			flex: 1;

@@ -1,70 +1,100 @@
 <script lang="ts">
 	import BranchLabel from '$components/BranchLabel.svelte';
 	import BranchRenameModal from '$components/BranchRenameModal.svelte';
+	import DeleteBranchModal from '$components/DeleteBranchModal.svelte';
+	import BranchBadge from '$components/v3/BranchBadge.svelte';
 	import BranchHeaderIcon from '$components/v3/BranchHeaderIcon.svelte';
+	import ContextMenu from '$components/v3/ContextMenu.svelte';
 	import { StackService } from '$lib/stacks/stackService.svelte';
 	import { UiState } from '$lib/state/uiState.svelte';
 	import { TestId } from '$lib/testing/testIds';
 	import { inject } from '@gitbutler/shared/context';
 	import Icon from '@gitbutler/ui/Icon.svelte';
+	import ReviewBadge from '@gitbutler/ui/ReviewBadge.svelte';
+	import { getTimeAgo } from '@gitbutler/ui/utils/timeAgo';
+	import { slide } from 'svelte/transition';
+	import type { PushStatus } from '$lib/stacks/stack';
 	import type iconsJson from '@gitbutler/ui/data/icons.json';
 	import type { Snippet } from 'svelte';
 
 	export type Props = {
-		el?: HTMLElement;
+		type: 'draft-branch' | 'normal-branch' | 'stack-branch';
 		projectId: string;
 		branchName: string;
 		readonly: boolean;
 		iconName: keyof typeof iconsJson;
 		lineColor: string;
-		menuBtnEl?: HTMLButtonElement;
-		draft?: boolean;
 		isCommitting?: boolean;
 	} & (
-		| { draft: true }
+		| { type: 'draft-branch' }
 		| {
-				draft: false | undefined;
+				type: 'normal-branch';
+				selected: boolean;
+				trackingBranch?: string;
+				lastUpdatedAt?: number;
+				isTopBranch?: boolean;
+				onclick: () => void;
+		  }
+		| {
+				type: 'stack-branch';
 				selected: boolean;
 				stackId: string;
 				trackingBranch?: string;
 				isTopBranch: boolean;
-				isMenuOpenByBtn?: boolean;
-				isMenuOpenByMouse?: boolean;
 				isNewBranch?: boolean;
-				details: Snippet;
+				prNumber?: number;
+				reviewId?: string;
+				pushStatus: PushStatus;
+				lastUpdatedAt?: number;
+				isCommitting: boolean;
+				isConflicted: boolean;
 				onclick: () => void;
-				onMenuBtnClick: () => void;
-				onContextMenu: (e: MouseEvent) => void;
+				menu?: Snippet<
+					[
+						{
+							showBranchRenameModal: () => void;
+							showDeleteBranchModal: () => void;
+						}
+					]
+				>;
 		  }
 	);
 
-	let {
-		el = $bindable(),
-		projectId,
-		branchName,
-		readonly,
-		iconName,
-		lineColor,
-		isCommitting,
-		menuBtnEl = $bindable(),
-		...args
-	}: Props = $props();
+	let { projectId, branchName, readonly, iconName, lineColor, isCommitting, ...args }: Props =
+		$props();
 
 	const [stackService, uiState] = inject(StackService, UiState);
 
 	const [updateName, nameUpdate] = stackService.updateBranchName;
 
-	const isPushed = $derived(!!(args.draft ? undefined : args.trackingBranch));
-	let renameBranchModal: BranchRenameModal | undefined = $state();
+	const isPushed = $derived(!!(args.type === 'draft-branch' ? undefined : args.trackingBranch));
+
+	let contextMenu = $state<ContextMenu>();
+	let rightClickTrigger = $state<HTMLDivElement>();
+	let leftClickTrigger = $state<HTMLButtonElement>();
+
+	let isOpenedByKebabButton = $state(false);
+	let isOpenedByMouse = $state(false);
+
+	let renameBranchModal = $state<BranchRenameModal>();
+	let deleteBranchModal = $state<DeleteBranchModal>();
+
+	function showBranchRenameModal() {
+		renameBranchModal?.show();
+	}
+
+	function showDeleteBranchModal() {
+		deleteBranchModal?.show();
+	}
 
 	async function updateBranchName(title: string) {
-		if (args.draft) {
+		if (args.type === 'draft-branch') {
 			uiState.global.draftBranchName.set(title);
 			const normalized = await stackService.normalizeBranchName(title);
 			if (normalized.data) {
 				uiState.global.draftBranchName.set(normalized.data);
 			}
-		} else {
+		} else if (args.type === 'stack-branch') {
 			updateName({
 				projectId,
 				stackId: args.stackId,
@@ -75,10 +105,10 @@
 	}
 </script>
 
-{#if !args.draft}
+{#if args.type === 'stack-branch'}
 	<div
 		data-testid={TestId.BranchHeader}
-		bind:this={el}
+		bind:this={rightClickTrigger}
 		role="button"
 		class="branch-header"
 		class:new-branch={args.isNewBranch}
@@ -88,12 +118,16 @@
 		oncontextmenu={(e) => {
 			e.stopPropagation();
 			e.preventDefault();
-			args.onContextMenu(e);
+			contextMenu?.toggle(e);
 		}}
 		onkeypress={args.onclick}
 		tabindex="0"
-		class:activated={args.isMenuOpenByMouse || args.isMenuOpenByBtn}
+		class:activated={isOpenedByMouse || isOpenedByKebabButton}
 	>
+		{#if args.selected}
+			<div class="branch-header__select-indicator" in:slide={{ axis: 'x', duration: 150 }}></div>
+		{/if}
+
 		<BranchHeaderIcon
 			{lineColor}
 			{iconName}
@@ -116,14 +150,14 @@
 				/>
 
 				<button
-					bind:this={menuBtnEl}
+					bind:this={leftClickTrigger}
 					type="button"
 					class="branch-menu-btn"
-					class:activated={args.isMenuOpenByBtn}
+					class:activated={isOpenedByKebabButton}
 					onmousedown={(e) => {
 						e.stopPropagation();
 						e.preventDefault();
-						args.onMenuBtnClick();
+						contextMenu?.toggle();
 					}}
 					onclick={(e) => {
 						e.stopPropagation();
@@ -140,9 +174,52 @@
 					<br />
 					Create or drag & drop commits here.
 				</p>
+			{:else}
+				<div class="text-12 branch-header__details">
+					<span class="branch-header__item">
+						<BranchBadge pushStatus={args.pushStatus} unstyled />
+					</span>
+					<span class="branch-header__divider">•</span>
+
+					{#if args.isConflicted}
+						<span class="branch-header__item branch-header__item--conflict"> Conflicts </span>
+						<span class="branch-header__divider">•</span>
+					{/if}
+
+					{#if args.lastUpdatedAt}
+						<span class="branch-header__item">
+							{getTimeAgo(new Date(args.lastUpdatedAt))}
+						</span>
+					{/if}
+
+					{#if args.reviewId || args.prNumber}
+						<span class="branch-header__divider">•</span>
+						<div class="branch-header__review-badges">
+							{#if args.reviewId}
+								<ReviewBadge brId={args.reviewId} brStatus="unknown" />
+							{/if}
+							{#if args.prNumber}
+								<ReviewBadge prNumber={args.prNumber} prStatus="unknown" />
+							{/if}
+						</div>
+					{/if}
+				</div>
 			{/if}
 		</div>
 	</div>
+	<ContextMenu
+		testId={TestId.BranchHeaderContextMenu}
+		bind:this={contextMenu}
+		bind:isOpenedByKebabButton
+		bind:isOpenedByMouse
+		{leftClickTrigger}
+		{rightClickTrigger}
+	>
+		{@render args.menu?.({
+			showBranchRenameModal,
+			showDeleteBranchModal
+		})}
+	</ContextMenu>
 	<BranchRenameModal
 		{projectId}
 		stackId={args.stackId}
@@ -150,15 +227,50 @@
 		bind:this={renameBranchModal}
 		isPushed={!!args.trackingBranch}
 	/>
+	<DeleteBranchModal
+		{projectId}
+		stackId={args.stackId}
+		{branchName}
+		bind:this={deleteBranchModal}
+	/>
+{:else if args.type === 'normal-branch'}
+	<div
+		data-testid={TestId.BranchHeader}
+		bind:this={rightClickTrigger}
+		role="button"
+		class="branch-header"
+		class:selected={args.selected}
+		onclick={args.onclick}
+		onkeypress={args.onclick}
+		tabindex="0"
+	>
+		{#if args.selected}
+			<div class="branch-header__select-indicator" in:slide={{ axis: 'x', duration: 150 }}></div>
+		{/if}
+
+		<BranchHeaderIcon {lineColor} {iconName} lineTop={!args.isTopBranch} />
+		<div class="branch-header__content">
+			<div class="name-line text-14 text-bold">
+				<BranchLabel name={branchName} fontSize="15" readonly={true} />
+			</div>
+		</div>
+		<div class="text-12 branch-header__details">
+			{#if args.lastUpdatedAt}
+				<span class="branch-header__item">
+					{getTimeAgo(new Date(args.lastUpdatedAt))}
+				</span>
+			{/if}
+		</div>
+	</div>
 {:else}
 	<div
 		data-testid={TestId.BranchHeader}
-		bind:this={el}
+		bind:this={rightClickTrigger}
 		role="button"
 		class="branch-header new-branch draft selected"
 		tabindex="0"
 	>
-		<BranchHeaderIcon {lineColor} {iconName} isDashed lineTop={false} />
+		<BranchHeaderIcon {lineColor} {iconName} isDashed lineTop />
 		<div class="branch-header__content">
 			<div class="name-line text-14 text-bold">
 				<BranchLabel
@@ -178,6 +290,9 @@
 
 <style lang="postcss">
 	.branch-header {
+		--branch-selected-bg: var(--clr-bg-1);
+		--branch-selected-element-bg: var(--clr-selected-not-in-focus-element);
+
 		position: relative;
 		display: flex;
 		justify-content: flex-start;
@@ -187,46 +302,33 @@
 		border-top-left-radius: var(--radius-ml);
 		border-bottom: 1px solid var(--clr-border-2);
 		overflow: hidden;
+		background-color: var(--branch-selected-bg);
 
-		&:before {
-			content: '';
-			position: absolute;
-			top: 14px;
-			left: 0;
-			width: 4px;
-			height: 20px;
-			transform: translateX(-100%);
-			border-radius: 0 var(--radius-ml) var(--radius-ml) 0;
-			background-color: var(--clr-selected-in-focus-element);
-			transition: transform var(--transition-fast);
+		/* show menu button on hover or if selected */
+		&:hover,
+		&.selected {
+			& .branch-menu-btn {
+				display: flex; /* show menu button on hover */
+			}
 		}
 
+		/* Selected but NOT in focus */
 		&:hover,
 		&.activated {
-			background-color: var(--clr-bg-1-muted);
-
-			& .branch-menu-btn {
-				display: flex;
-			}
+			--branch-selected-bg: var(--clr-bg-1-muted);
 		}
-
 		&:focus-within,
 		&.selected {
-			background-color: var(--clr-selected-not-in-focus-bg);
-
-			& .branch-menu-btn {
-				display: flex;
-			}
-
-			&:before {
-				transform: translateX(0%);
-			}
+			--branch-selected-bg: var(--clr-selected-not-in-focus-bg);
 		}
 
+		/* Selected in focus */
 		&:focus-within.selected {
-			background-color: var(--clr-selected-in-focus-bg);
+			--branch-selected-bg: var(--clr-selected-in-focus-bg);
+			--branch-selected-element-bg: var(--clr-selected-in-focus-element);
 		}
 
+		/* MODIFIERS */
 		&.new-branch {
 			border-bottom: none;
 			border-radius: var(--radius-ml);
@@ -234,6 +336,26 @@
 		&.is-committing {
 			border-radius: var(--radius-ml) var(--radius-ml) 0 0;
 		}
+	}
+
+	.branch-header__details {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 6px;
+		color: var(--clr-text-2);
+		margin-left: 4px;
+	}
+
+	.branch-header__select-indicator {
+		position: absolute;
+		top: 14px;
+		left: 0;
+		width: 4px;
+		height: 20px;
+		border-radius: 0 var(--radius-ml) var(--radius-ml) 0;
+		background-color: var(--branch-selected-element-bg);
+		transition: transform var(--transition-fast);
 	}
 
 	.name-line {
@@ -281,5 +403,22 @@
 		& span {
 			text-wrap: nowrap;
 		}
+	}
+	.branch-header__review-badges {
+		display: flex;
+		gap: 3px;
+	}
+
+	.branch-header__item {
+		white-space: nowrap;
+		color: var(--clr-text-2);
+	}
+
+	.branch-header__item--conflict {
+		color: var(--clr-theme-err-element);
+	}
+
+	.branch-header__divider {
+		color: var(--clr-text-3);
 	}
 </style>

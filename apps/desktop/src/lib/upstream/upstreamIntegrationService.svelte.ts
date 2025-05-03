@@ -49,6 +49,7 @@ export class UpstreamIntegrationService {
 
 			const stackStatusesWithBranches: StackStatusesWithBranchesV3 = {
 				type: 'updatesRequired',
+				worktreeConflicts: branchStatusesData.subject.worktreeConflicts,
 				subject: branchStatusesData.subject.statuses
 					.map((status) => {
 						const stack = stackData.find((appliedBranch) => appliedBranch.id === status[0]);
@@ -109,7 +110,7 @@ function injectEndpoints(api: ClientState['backendApi']) {
 				{ projectId: string; targetCommitOid?: string }
 			>({
 				query: ({ projectId, targetCommitOid }) => ({
-					command: `upstream_integration_statuses`,
+					command: 'upstream_integration_statuses',
 					params: { projectId, targetCommitOid }
 				}),
 				providesTags: [providesList(ReduxTag.UpstreamIntegrationStatus)]
@@ -123,7 +124,7 @@ function injectEndpoints(api: ClientState['backendApi']) {
 				}
 			>({
 				query: ({ projectId, resolutions, baseBranchResolution }) => ({
-					command: `integrate_upstream`,
+					command: 'integrate_upstream',
 					params: { projectId, resolutions, baseBranchResolution }
 				}),
 				invalidatesTags: [

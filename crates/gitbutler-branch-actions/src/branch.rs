@@ -126,30 +126,31 @@ pub fn list_branches(
         branches.retain(|branch_listing| branch_names.contains(&branch_listing.name))
     }
 
-    // Get a list of all stack branches that do not have the same name as the
-    // stack itself.
+    // We want to exclude branches that are already part of a stack.
+    // To do this, we build up a list of all the branch identities that are
+    // part of a stack and then filter out any branches that have been grouped
+    // without a stack and match one of these identities.
     let branch_identities_to_exclude = stacks
         .iter()
-        .filter(|stack| {
-            let Ok(normalized_name) = normalize_branch_name(&stack.name) else {
-                return false;
-            };
-            let head_matches_stack_name = stack
-                .branches()
-                .iter()
-                .any(|branch| branch.name() == &normalized_name);
-
-            !head_matches_stack_name
-        })
         .flat_map(|s| {
             s.branches()
                 .into_iter()
                 .map(|b| BString::from(b.name().to_owned()))
-                .collect_vec()
+                .chain([BString::from(s.name.to_owned())])
         })
-        .collect_vec();
+        .collect::<HashSet<_>>();
 
-    branches.retain(|branch| !branch_identities_to_exclude.contains(&(*branch.name).to_owned()));
+    branches.retain(|branch| {
+        if branch.stack.is_some() {
+            return true;
+        }
+
+        if branch_identities_to_exclude.contains(&(*branch.name).to_owned()) {
+            return false;
+        }
+
+        true
+    });
 
     Ok(branches)
 }
@@ -290,13 +291,14 @@ fn branch_group_to_branch(
         }
     }
 
-    let has_local = !local_branches.is_empty();
+    // Virtual branches always have local branches
+    let has_local = !local_branches.is_empty() || virtual_branch.is_some();
 
     // The head commit for which we calculate statistics.
     // If there is a virtual branch let's get it's head. Alternatively, pick the first local branch and use it's head.
     // If there are no local branches, pick the first remote branch.
     let head_commit = if let Some(vbranch) = virtual_branch {
-        Some(git2_to_gix_object_id(vbranch.head(repo)?).attach(repo))
+        Some(vbranch.head_oid(repo)?.attach(repo))
     } else if let Some(mut branch) = local_branches.into_iter().next() {
         branch.peel_to_id_in_place_packed(packed).ok()
     } else if let Some(mut branch) = remote_branches.into_iter().next() {

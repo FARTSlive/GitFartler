@@ -20,7 +20,7 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use but_workspace::commit_engine::DiffSpec;
-use but_workspace::{commit_engine, StackEntry};
+use but_workspace::{commit_engine, stack_heads_info, StackEntry};
 use gitbutler_branch::{BranchCreateRequest, BranchUpdateRequest};
 use gitbutler_command_context::CommandContext;
 use gitbutler_diff::DiffByPathMap;
@@ -31,7 +31,7 @@ use gitbutler_oplog::{
 };
 use gitbutler_oxidize::{ObjectIdExt, OidExt};
 use gitbutler_project::FetchResult;
-use gitbutler_reference::{ReferenceName, Refname, RemoteRefname};
+use gitbutler_reference::{Refname, RemoteRefname};
 use gitbutler_repo::RepositoryExt;
 use gitbutler_repo_actions::RepoActionsExt;
 use gitbutler_stack::{BranchOwnershipClaims, StackId};
@@ -110,8 +110,8 @@ pub fn create_virtual_branch(
     let repo = ctx.gix_repo()?;
     Ok(StackEntry {
         id: stack.id,
-        branch_names: stack.heads(false).into_iter().map(Into::into).collect(),
-        tip: stack.head(&repo)?.to_gix(),
+        heads: stack_heads_info(&stack, &repo)?,
+        tip: stack.head_oid(&repo)?,
     })
 }
 
@@ -244,21 +244,15 @@ pub fn update_branch_order(
 }
 
 /// Unapplies a virtual branch and deletes the branch entry from the virtual branch state.
-pub fn unapply_without_saving_virtual_branch(
-    ctx: &CommandContext,
-    stack_id: StackId,
-) -> Result<()> {
+pub fn unapply_stack(ctx: &CommandContext, stack_id: StackId) -> Result<String> {
     ctx.verify()?;
     assure_open_workspace_mode(ctx)
         .context("Deleting a branch order requires open workspace mode")?;
     let branch_manager = ctx.branch_manager();
     let mut guard = ctx.project().exclusive_worktree_access();
-    let state = ctx.project().virtual_branches();
-    let default_target = state.get_default_target()?;
-    let target_commit = ctx.repo().find_commit(default_target.sha)?;
     // NB: unapply_without_saving is also called from save_and_unapply
-    branch_manager.unapply(stack_id, guard.write_permission(), &target_commit, true)?;
-    state.delete_branch_entry(&stack_id)
+    let branch_name = branch_manager.unapply(stack_id, guard.write_permission(), false)?;
+    Ok(branch_name)
 }
 
 pub fn unapply_lines(
@@ -339,7 +333,10 @@ fn amend_with_commit_engine(
         &ctx.gix_repo()?,
         ctx.project(),
         Some(stack_id),
-        commit_engine::Destination::AmendCommit(commit_oid.to_gix()),
+        commit_engine::Destination::AmendCommit {
+            commit_id: commit_oid.to_gix(),
+            new_message: None,
+        },
         None,
         worktree_changes,
         3, // for the old API this is hardcoded
@@ -434,25 +431,6 @@ pub fn reset_virtual_branch(
         guard.write_permission(),
     );
     vbranch::reset_branch(ctx, stack_id, target_commit_oid)
-}
-
-pub fn save_and_unapply_virutal_branch(
-    ctx: &CommandContext,
-    stack_id: StackId,
-) -> Result<ReferenceName> {
-    ctx.verify()?;
-    assure_open_workspace_mode(ctx)
-        .context("Converting branch to a real branch requires open workspace mode")?;
-    let mut guard = ctx.project().exclusive_worktree_access();
-    let snapshot_tree = ctx.prepare_snapshot(guard.read_permission());
-    let branch_manager = ctx.branch_manager();
-    let result = branch_manager.save_and_unapply(stack_id, guard.write_permission());
-
-    let _ = snapshot_tree.and_then(|snapshot_tree| {
-        ctx.snapshot_branch_unapplied(snapshot_tree, result.as_ref(), guard.write_permission())
-    });
-
-    result
 }
 
 #[deprecated(note = "use gitbutler_branch_actions::stack::push_stack instead")]

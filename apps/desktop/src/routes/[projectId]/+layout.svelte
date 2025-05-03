@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import Chrome from '$components/Chrome.svelte';
 	import FileMenuAction from '$components/FileMenuAction.svelte';
 	import History from '$components/History.svelte';
@@ -8,6 +9,7 @@
 	import NotOnGitButlerBranch from '$components/NotOnGitButlerBranch.svelte';
 	import ProblemLoadingRepo from '$components/ProblemLoadingRepo.svelte';
 	import ProjectSettingsMenuAction from '$components/ProjectSettingsMenuAction.svelte';
+	import IrcPopups from '$components/v3/IrcPopups.svelte';
 	import { BaseBranch } from '$lib/baseBranch/baseBranch';
 	import BaseBranchService from '$lib/baseBranch/baseBranchService.svelte';
 	import { BranchService } from '$lib/branches/branchService.svelte';
@@ -28,6 +30,7 @@
 	import { StackPublishingService } from '$lib/history/stackPublishingService';
 	import { SyncedSnapshotService } from '$lib/history/syncedSnapshotService';
 	import { ModeService } from '$lib/mode/modeService';
+	import { showError } from '$lib/notifications/toasts';
 	import { Project } from '$lib/project/project';
 	import { projectCloudSync } from '$lib/project/projectCloudSync.svelte';
 	import { ProjectService } from '$lib/project/projectService';
@@ -46,7 +49,6 @@
 	import { onDestroy, setContext, type Snippet } from 'svelte';
 	import type { ProjectMetrics } from '$lib/metrics/projectMetrics';
 	import type { LayoutData } from './$types';
-	import { goto } from '$app/navigation';
 
 	const { data, children }: { data: LayoutData; children: Snippet } = $props();
 
@@ -95,6 +97,7 @@
 	$effect.pre(() => gitHubClient.setRepo({ owner: repoInfo?.owner, repo: repoInfo?.name }));
 
 	const projectError = $derived(projectsService.error);
+	const projects = $derived(projectsService.projects);
 
 	const cloudBranchService = getContext(CloudBranchService);
 	const cloudProjectService = getContext(CloudProjectService);
@@ -255,8 +258,42 @@
 		clearFetchInterval();
 	});
 
+	let noViewableProjects = $state(false);
+
+	async function setActiveProjectOrRedirect() {
+		// Optimistically assume the project is viewable
+		noViewableProjects = false;
+		try {
+			await projectsService.setActiveProject(projectId);
+		} catch (error: unknown) {
+			showError('This project is already open in another window', error);
+			await redirectToAvailableProject();
+		}
+	}
+
+	async function redirectToAvailableProject() {
+		// Try to go back to the previously active project
+		try {
+			const activeProject = await projectsService.getActiveProject();
+			if (activeProject) {
+				goto(`/${activeProject.id}/board`);
+				return;
+			}
+		} catch (error: unknown) {
+			console.error(error);
+		}
+
+		// Otherwise go to the first project that is not open
+		const availableProject = $projects?.find((project) => !project.is_open);
+		if (availableProject) {
+			goto(`/${availableProject.id}/board`);
+		}
+		// If no available projects, show a special page
+		noViewableProjects = true;
+	}
+
 	$effect(() => {
-		projectsService.setActiveProject(projectId);
+		setActiveProjectOrRedirect();
 	});
 </script>
 
@@ -275,11 +312,13 @@
 		<ProblemLoadingRepo error={$branchesError} />
 	{:else if $projectError}
 		<ProblemLoadingRepo error={$projectError} />
+	{:else if noViewableProjects}
+		<ProblemLoadingRepo error="All projects are already open in another window" />
 	{:else if baseBranch}
 		{#if $mode?.type === 'OpenWorkspace' || $mode?.type === 'Edit'}
 			<div class="view-wrap" role="group" ondragover={(e) => e.preventDefault()}>
 				{#if $settingsStore?.featureFlags.v3}
-					<Chrome {projectId}>
+					<Chrome {projectId} sidebarDisabled={$mode?.type === 'Edit'}>
 						{@render children()}
 					</Chrome>
 				{:else}
@@ -295,6 +334,10 @@
 		{/if}
 	{/if}
 {/key}
+
+{#if $settingsStore?.featureFlags.v3}
+	<IrcPopups />
+{/if}
 
 <!-- Mounting metrics reporter in the board ensures dependent services are subscribed to. -->
 <MetricsReporter {projectId} {projectMetrics} />

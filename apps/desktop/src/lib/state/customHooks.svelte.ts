@@ -1,4 +1,4 @@
-import { isTauriCommandError, type TauriCommandError } from '$lib/state/backendQuery';
+import { isTauriCommandError, type TauriCommandError } from '$lib/backend/ipc';
 import { reactive, type Reactive } from '@gitbutler/shared/storeUtils';
 import {
 	type Api,
@@ -107,7 +107,6 @@ export function buildQueryHooks<Definitions extends EndpointDefinitions>({
 		const dispatch = getDispatch();
 		let subscriptions: QueryActionCreatorResult<any>[];
 		$effect(() => {
-			// eslint-disable-next-line @typescript-eslint/promise-function-async
 			subscriptions = queryArgs.map((queryArg) =>
 				dispatch(
 					initiate(queryArg, {
@@ -156,11 +155,18 @@ export function buildQueryHooks<Definitions extends EndpointDefinitions>({
 		return reactive(() => output);
 	}
 
+	function useQueryTimeStamp(queryArg: unknown) {
+		const selector = $derived(select(queryArg));
+		const result = $derived(selector(state()));
+		return reactive(() => result.startedTimeStamp);
+	}
+
 	return {
 		fetch,
 		useQuery,
 		useQueryState,
-		useQueries
+		useQueries,
+		useQueryTimeStamp
 	};
 }
 

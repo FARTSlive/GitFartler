@@ -64,10 +64,10 @@
 
 	const vert = $derived(!horz);
 
-	let paddingTop = $state(pxToRem(padding.top ?? 0));
-	let paddingBottom = $state(pxToRem(padding.bottom ?? 0));
-	let paddingRight = $state(pxToRem(padding.right ?? 0));
-	let paddingLeft = $state(pxToRem(padding.left ?? 0));
+	const paddingTop = $derived(pxToRem(padding.top ?? 0));
+	const paddingBottom = $derived(pxToRem(padding.bottom ?? 0));
+	const paddingRight = $derived(pxToRem(padding.right ?? 0));
+	const paddingLeft = $derived(pxToRem(padding.left ?? 0));
 
 	let wholeHeight = $state(viewport?.scrollHeight ?? 0);
 	let wholeWidth = $state(viewport?.scrollWidth ?? 0);
@@ -157,7 +157,7 @@
 		};
 	}
 
-	function updateTrack() {
+	export function updateTrack() {
 		wholeHeight = viewport?.scrollHeight ?? 0;
 		wholeWidth = viewport?.scrollWidth ?? 0;
 		trackHeight = viewport?.clientHeight ?? 0;
@@ -290,8 +290,8 @@
 	style:height={vert ? `100%` : thickness}
 	style:z-index={zIndex}
 	style="
-    --scrollbar-shift-vertical: {vert ? '0' : shift};
-    --scrollbar-shift-horizontal: {horz ? '0' : shift};
+    --scrollbar-shift-vertical: {vert ? '0' : shift || 0};
+    --scrollbar-shift-horizontal: {horz ? '0' : shift || 0};
     "
 >
 	<div
